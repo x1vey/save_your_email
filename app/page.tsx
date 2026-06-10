@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 
 // Import new 8-bit components
 import { MiniNavbar } from "@/components/ui/sign-in-flow-1";
-import { GameAnimation } from "@/components/game-animation";
+import { PlayableMiniGame } from "@/components/playable-mini-game";
 import Team2 from "@/components/ui/8bit-team2";
 import { Button } from "@/components/ui/8bit-button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/8bit-card";
@@ -312,7 +312,26 @@ export default function Home() {
               </p>
             </div>
             
-            <GameAnimation />
+            <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xl mx-auto mb-12">
+              <Button 
+                variant="outline" 
+                className="flex-1 py-8 text-xl flex flex-col items-center justify-center gap-2 bg-black hover:bg-primary/20 border-primary text-primary"
+                onClick={() => setMode("diagnose")}
+              >
+                <div className="text-3xl">🛡️</div>
+                <div>DMARC Check</div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex-1 py-8 text-xl flex flex-col items-center justify-center gap-2 bg-black hover:bg-primary/20 border-primary text-primary"
+                onClick={() => setMode("lint")}
+              >
+                <div className="text-3xl">✉️</div>
+                <div>Spam Filter Check</div>
+              </Button>
+            </div>
+
+            <PlayableMiniGame />
 
             <div className="mt-12 w-full max-w-xl mx-auto">
               <div className="flex flex-col sm:flex-row gap-4">
@@ -322,9 +341,9 @@ export default function Home() {
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && runScan()}
-                  className="flex-1 bg-white border-4 border-black p-4 text-[10px] uppercase shadow-[4px_4px_0_0_#000] focus:outline-none focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-[2px_2px_0_0_#000] transition-all"
+                  className="flex-1 bg-black border-4 border-primary p-4 text-xl uppercase shadow-[4px_4px_0_0_#15803d] focus:outline-none focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-[2px_2px_0_0_#15803d] transition-all text-primary placeholder-primary/50"
                 />
-                <Button onClick={runScan} disabled={!domain.trim()} className="py-4 px-8 text-[10px]">
+                <Button onClick={runScan} disabled={!domain.trim()} className="py-4 px-8 text-xl">
                   SCAN DOMAIN
                 </Button>
               </div>
@@ -337,13 +356,13 @@ export default function Home() {
         )}
 
         {mode === "diagnose" && stage === "scanning" && (
-          <Card className="w-full max-w-2xl mx-auto mt-16 p-8 text-center bg-white">
-            <h2 className="text-xl mb-4 animate-pulse">SCANNING {domain.includes("@") ? domain.split("@")[1] : domain}...</h2>
-            <p className="text-[10px] text-gray-500 mb-8">Resolving MX, SPF, DKIM and DMARC records.</p>
+          <Card className="w-full max-w-2xl mx-auto mt-16 p-8 text-center bg-card border-primary">
+            <h2 className="text-2xl mb-4 animate-pulse text-primary">SCANNING {domain.includes("@") ? domain.split("@")[1] : domain}...</h2>
+            <p className="text-xl text-primary/70 mb-8">Resolving MX, SPF, DKIM and DMARC records.</p>
             
-            <div className="bg-gray-100 border-4 border-black p-6 relative shadow-inner">
-               <div className="text-[10px] text-primary mb-2 font-bold">DELIVERABILITY FACT</div>
-               <div className="text-[10px] leading-loose">{EMAIL_FACTS[factIndex]}</div>
+            <div className="bg-black border-4 border-primary p-6 relative shadow-inner">
+               <div className="text-xl text-primary mb-2 font-bold">DELIVERABILITY FACT</div>
+               <div className="text-xl leading-loose text-primary">{EMAIL_FACTS[factIndex]}</div>
             </div>
           </Card>
         )}
@@ -354,11 +373,11 @@ export default function Home() {
               SCAN RESULTS: {scan.domain}
             </h1>
             
-            <div className="flex items-center gap-6 bg-white border-4 border-black p-6 shadow-[4px_4px_0_0_#000]">
-              <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-bold ${scoreColorClass(scan.techScore)}`}>
+            <div className="flex items-center gap-6 bg-black border-4 border-primary p-6 shadow-[4px_4px_0_0_#15803d]">
+              <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-4xl font-bold ${scoreColorClass(scan.techScore)}`}>
                 {scan.techScore}
               </div>
-              <div className="flex-1 text-[10px] leading-loose text-gray-600">
+              <div className="flex-1 text-xl leading-loose text-primary/80">
                 Technical (authentication) score from DNS alone. Describe your problem next so we can ask the right questions and write your fix plan.
               </div>
             </div>
@@ -372,13 +391,13 @@ export default function Home() {
                     </Badge>
                   </div>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{f.title}</CardTitle>
+                    <CardTitle className="text-xl text-primary">{f.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-[10px] leading-loose text-gray-600">{f.detail}</p>
+                    <p className="text-lg leading-loose text-primary/70">{f.detail}</p>
                     {f.fix && (
-                      <p className="text-[10px] leading-loose mt-4 border-t-2 border-black pt-2">
-                        <strong className="text-black">FIX: </strong> {f.fix}
+                      <p className="text-lg leading-loose mt-4 border-t-2 border-primary pt-2 text-primary">
+                        <strong className="text-primary font-bold">FIX: </strong> {f.fix}
                       </p>
                     )}
                   </CardContent>
@@ -395,58 +414,58 @@ export default function Home() {
 
         {mode === "diagnose" && stage === "problem" && (
           <div className="w-full max-w-2xl mx-auto space-y-8">
-            <h1 className="text-2xl font-bold">WHAT'S THE PROBLEM?</h1>
-            <p className="text-[10px] text-gray-600 leading-loose">
+            <h1 className="text-3xl font-bold text-primary">WHAT'S THE PROBLEM?</h1>
+            <p className="text-xl text-primary/70 leading-loose">
               Describe the deliverability issue you're experiencing — or leave blank if you just want a general health check.
             </p>
             
-            <Card className="p-6 bg-white">
+            <Card className="p-6 bg-card border-primary">
               <textarea
                 rows={5}
                 placeholder="E.g. My open rates dropped from 40% to 2%..."
                 value={problemStatement}
                 onChange={(e) => setProblemStatement(e.target.value)}
-                className="w-full bg-gray-50 border-4 border-black p-4 text-[10px] leading-loose focus:outline-none focus:bg-white resize-y"
+                className="w-full bg-black border-4 border-primary p-4 text-xl leading-loose text-primary focus:outline-none focus:bg-black/80 resize-y placeholder-primary/50"
               />
               <div className="flex justify-between mt-6">
                 <Button variant="outline" onClick={() => setStage("scan")}>← BACK</Button>
                 <Button onClick={runTriage}>CONTINUE →</Button>
               </div>
             </Card>
-            {error && <div className="text-red-500 text-[10px] mt-4">{error}</div>}
+            {error && <div className="text-red-500 text-xl mt-4">{error}</div>}
           </div>
         )}
 
         {mode === "diagnose" && (stage === "triaging" || stage === "generating") && (
-          <Card className="w-full max-w-2xl mx-auto mt-16 p-8 text-center bg-white">
-            <h2 className="text-xl mb-4 animate-pulse">
+          <Card className="w-full max-w-2xl mx-auto mt-16 p-8 text-center bg-card border-primary">
+            <h2 className="text-2xl mb-4 animate-pulse text-primary">
               {stage === "triaging" ? "ANALYZING..." : "WRITING FIX PLAN..."}
             </h2>
-            <div className="bg-gray-100 border-4 border-black p-6 relative shadow-inner mt-8">
-               <div className="text-[10px] text-primary mb-2 font-bold">DELIVERABILITY FACT</div>
-               <div className="text-[10px] leading-loose">{EMAIL_FACTS[factIndex]}</div>
+            <div className="bg-black border-4 border-primary p-6 relative shadow-inner mt-8">
+               <div className="text-xl text-primary mb-2 font-bold">DELIVERABILITY FACT</div>
+               <div className="text-xl leading-loose text-primary/80">{EMAIL_FACTS[factIndex]}</div>
             </div>
           </Card>
         )}
 
         {mode === "diagnose" && stage === "questions" && current && (
           <div className="w-full max-w-2xl mx-auto space-y-8">
-            <div className="h-4 bg-gray-200 border-4 border-black w-full overflow-hidden">
+            <div className="h-4 bg-black border-4 border-primary w-full overflow-hidden">
               <div className="h-full bg-primary" style={{ width: `${((qIndex + 1) / triageSlots.length) * 100}%` }} />
             </div>
 
             <div>
-              <h2 className="text-lg font-bold mb-2 leading-relaxed">{current.text}</h2>
-              {current.help && <p className="text-[10px] text-gray-500 leading-loose">{current.help}</p>}
+              <h2 className="text-2xl font-bold mb-2 leading-relaxed text-primary">{current.text}</h2>
+              {current.help && <p className="text-xl text-primary/70 leading-loose">{current.help}</p>}
             </div>
 
-            <Card className="p-6 bg-white">
+            <Card className="p-6 bg-card border-primary">
               <textarea
                 rows={4}
                 placeholder="TYPE YOUR ANSWER..."
                 value={typedAnswer}
                 onChange={(e) => handleTextareaChange(e.target.value)}
-                className="w-full bg-gray-50 border-4 border-black p-4 text-[10px] leading-loose focus:outline-none focus:bg-white"
+                className="w-full bg-black border-4 border-primary p-4 text-xl leading-loose text-primary focus:outline-none focus:bg-black/80 placeholder-primary/50"
               />
               
               {current.options && current.options.length > 0 && (
@@ -532,13 +551,13 @@ export default function Home() {
               </div>
             </div>
 
-            <Card className="p-8 bg-white MarkdownContent text-[10px] leading-loose">
+            <Card className="p-8 bg-black border-primary MarkdownContent text-xl leading-loose text-primary">
                <style dangerouslySetInnerHTML={{__html:`
-                 .MarkdownContent h1, .MarkdownContent h2, .MarkdownContent h3 { font-family: 'Press Start 2P', monospace; margin-top: 2rem; margin-bottom: 1rem; line-height: 1.5; }
-                 .MarkdownContent p, .MarkdownContent li { font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 2; margin-bottom: 1rem; }
-                 .MarkdownContent code { background: #eee; padding: 4px; border: 2px solid #000; font-family: monospace; font-size: 12px; }
-                 .MarkdownContent pre { background: #111; color: #fff; padding: 1rem; border: 4px solid #000; overflow-x: auto; margin-bottom: 1rem; }
-                 .MarkdownContent pre code { background: none; border: none; color: #0f0; }
+                 .MarkdownContent h1, .MarkdownContent h2, .MarkdownContent h3 { font-family: 'VT323', monospace; margin-top: 2rem; margin-bottom: 1rem; line-height: 1.5; color: #16a34a; }
+                 .MarkdownContent p, .MarkdownContent li { font-family: 'VT323', monospace; font-size: 1.25rem; line-height: 2; margin-bottom: 1rem; color: #22c55e; }
+                 .MarkdownContent code { background: #000; padding: 4px; border: 2px solid #16a34a; font-family: monospace; font-size: 1.125rem; color: #16a34a; }
+                 .MarkdownContent pre { background: #000; color: #16a34a; padding: 1rem; border: 4px solid #16a34a; overflow-x: auto; margin-bottom: 1rem; }
+                 .MarkdownContent pre code { background: none; border: none; color: #16a34a; }
                `}} />
               <Markdown source={report.markdown || ""} />
             </Card>
