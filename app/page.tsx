@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 
 // Import new 8-bit components
 import { MiniNavbar } from "@/components/ui/sign-in-flow-1";
-import { PlayableMiniGame } from "@/components/playable-mini-game";
+import { GameAnimation } from "@/components/game-animation";
 import Team2 from "@/components/ui/8bit-team2";
 import { Button } from "@/components/ui/8bit-button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/8bit-card";
@@ -300,57 +300,63 @@ export default function Home() {
           </div>
         )}
 
-        {/* Game Animation Banner Section */}
+        {/* Main Hero & Action Section */}
         {mode === "diagnose" && stage === "intro" && (
-          <div className="w-full mb-16">
-            <div className="text-center mb-8">
-              <h1 className="text-2xl md:text-4xl font-bold uppercase mb-4 leading-relaxed">
-                Why are your emails<br/>landing in <span className="text-red-500">SPAM</span>?
+          <div className="w-full mb-24 flex flex-col items-center">
+            {/* Massive Hero Section */}
+            <div className="text-center mb-16 space-y-6">
+              <h1 className="text-5xl md:text-7xl font-bold uppercase leading-tight tracking-tighter text-primary drop-shadow-[0_0_20px_rgba(21,128,61,0.5)]">
+                Why are your emails<br/>landing in <span className="text-red-500 drop-shadow-[0_0_20px_rgba(255,0,0,0.8)]">SPAM</span>?
               </h1>
-              <p className="text-[10px] text-gray-600 max-w-xl mx-auto leading-loose">
+              <p className="text-2xl text-primary/80 max-w-2xl mx-auto leading-relaxed">
                 Enter your sending email address. We'll run a live scan of your authentication records, then hand you a prioritized fix list to beat the spam filters.
               </p>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xl mx-auto mb-12">
-              <Button 
-                variant="outline" 
-                className="flex-1 py-8 text-xl flex flex-col items-center justify-center gap-2 bg-black hover:bg-primary/20 border-primary text-primary"
+            {/* Sleek Toggle Tabs */}
+            <div className="flex gap-4 w-full max-w-2xl mx-auto mb-8 p-2 bg-card border-4 border-primary shadow-[0_0_15px_rgba(21,128,61,0.2)]">
+              <button 
+                className="flex-1 py-4 text-2xl font-bold transition-all bg-primary text-black"
                 onClick={() => setMode("diagnose")}
               >
-                <div className="text-3xl">🛡️</div>
-                <div>DMARC Check</div>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="flex-1 py-8 text-xl flex flex-col items-center justify-center gap-2 bg-black hover:bg-primary/20 border-primary text-primary"
+                DMARC CHECK
+              </button>
+              <button 
+                className="flex-1 py-4 text-2xl font-bold transition-all bg-transparent text-primary hover:bg-primary/10"
                 onClick={() => setMode("lint")}
               >
-                <div className="text-3xl">✉️</div>
-                <div>Spam Filter Check</div>
-              </Button>
+                SPAM FILTER CHECK
+              </button>
             </div>
 
-            <PlayableMiniGame />
-
-            <div className="mt-12 w-full max-w-xl mx-auto">
-              <div className="flex flex-col sm:flex-row gap-4">
+            {/* Massive Domain Input */}
+            <div className="w-full max-w-2xl mx-auto mb-16 relative">
+              <div className="flex flex-col sm:flex-row gap-0 border-4 border-primary shadow-[8px_8px_0_0_#15803d] focus-within:shadow-[4px_4px_0_0_#15803d] focus-within:translate-x-[4px] focus-within:translate-y-[4px] transition-all bg-black">
                 <input
                   type="text"
                   placeholder="USER@DOMAIN.COM"
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && runScan()}
-                  className="flex-1 bg-black border-4 border-primary p-4 text-xl uppercase shadow-[4px_4px_0_0_#15803d] focus:outline-none focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-[2px_2px_0_0_#15803d] transition-all text-primary placeholder-primary/50"
+                  className="flex-1 bg-transparent p-6 text-3xl uppercase text-primary placeholder-primary/40 focus:outline-none"
                 />
-                <Button onClick={runScan} disabled={!domain.trim()} className="py-4 px-8 text-xl">
-                  SCAN DOMAIN
-                </Button>
+                <button 
+                  onClick={runScan} 
+                  disabled={!domain.trim()} 
+                  className="bg-primary text-black px-10 text-2xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  SCAN
+                </button>
               </div>
-              <p className="text-[8px] text-gray-400 mt-4 text-center">
+              <p className="text-lg text-primary/50 mt-6 text-center">
                 We only read public DNS records. Nothing is sent on your behalf.
               </p>
-              {error && <div className="text-red-500 text-[10px] mt-4 text-center border-2 border-red-500 p-2">{error}</div>}
+              {error && <div className="text-red-500 text-xl mt-4 text-center border-2 border-red-500 p-2 bg-red-950/30">{error}</div>}
+            </div>
+
+            {/* Premium Animation Section */}
+            <div className="w-full mt-8">
+              <GameAnimation />
             </div>
           </div>
         )}
