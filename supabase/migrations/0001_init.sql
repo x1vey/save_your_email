@@ -14,6 +14,7 @@ create table if not exists public.profiles (
   email       text,
   full_name   text,
   is_anonymous boolean default false,
+  test_email  text,
   created_at  timestamptz not null default now()
 );
 
@@ -113,3 +114,22 @@ create policy "reports_insert_own" on public.reports
 drop policy if exists "reports_delete_own" on public.reports;
 create policy "reports_delete_own" on public.reports
   for delete using (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- lead_emails: temporary storage for scanned emails before account creation
+-- ---------------------------------------------------------------------------
+create table if not exists public.lead_emails (
+  id          uuid primary key default gen_random_uuid(),
+  email       text not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.lead_emails enable row level security;
+
+drop policy if exists "lead_emails_insert_public" on public.lead_emails;
+create policy "lead_emails_insert_public" on public.lead_emails
+  for insert with check (true);
+
+drop policy if exists "lead_emails_select_public" on public.lead_emails;
+create policy "lead_emails_select_public" on public.lead_emails
+  for select using (true);

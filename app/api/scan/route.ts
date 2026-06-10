@@ -19,14 +19,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const raw = body.domain ?? "";
+  let raw = (body.domain ?? "").trim();
+  let email = "";
+  if (raw.includes("@")) {
+    email = raw;
+    raw = raw.split("@")[1] || "";
+  }
+
   const domain = normalizeDomain(raw);
   if (!domain || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
-    return NextResponse.json({ error: "Please enter a valid domain, e.g. example.com" }, { status: 400 });
+    return NextResponse.json({ error: "Please enter a valid email or domain, e.g. user@example.com" }, { status: 400 });
   }
 
   try {
     const result = await scanDomain(domain);
+
+    // Save lead email if provided
+    let leadEmailId: string | null = null;
+    if (email && supabase) {
+      const { data, error } = await supabase
+        .from("lead_emails")
+        .insert({ email })
+        .select("id")
+        .single();
+      if (data && !error) {
+        leadEmailId = data.id;
+      }
+    }
 
     // Persist for signed-in users; RLS restricts the row to this account.
     if (supabase && userId) {
@@ -39,7 +58,7 @@ export async function POST(req: Request) {
         );
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, leadEmailId, leadEmail: email });
   } catch (err) {
     return NextResponse.json(
       { error: `Scan failed: ${(err as Error).message}` },

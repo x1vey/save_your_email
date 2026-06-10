@@ -7,10 +7,10 @@ export type RouteName = "scan" | "interview" | "lint" | "report";
 
 const WINDOW = "10 m" as const;
 const LIMITS: Record<RouteName, { ip: number; acct: number }> = {
-  scan: { ip: 20, acct: 40 },
+  scan: { ip: 20, acct: 1 },
   interview: { ip: 80, acct: 160 },
   lint: { ip: 60, acct: 120 },
-  report: { ip: 15, acct: 30 },
+  report: { ip: 15, acct: 1 },
 };
 
 // Resolve the Upstash client once. `undefined` = not yet checked, `null` = not
@@ -34,9 +34,11 @@ function limiter(route: RouteName, scope: "ip" | "acct"): Ratelimit | null {
   const key = `${route}:${scope}`;
   let lim = cache.get(key);
   if (!lim) {
+    const limit = LIMITS[route][scope];
+    const window = scope === "acct" && (route === "scan" || route === "report") ? "24 h" : WINDOW;
     lim = new Ratelimit({
       redis: r,
-      limiter: Ratelimit.slidingWindow(LIMITS[route][scope], WINDOW),
+      limiter: Ratelimit.slidingWindow(limit, window),
       prefix: `rl:${key}`,
       analytics: false,
     });

@@ -54,9 +54,11 @@ export default function Home() {
   const [factIndex, setFactIndex] = useState(0);
   const [typedAnswer, setTypedAnswer] = useState("");
   const [followUpAnswers, setFollowUpAnswers] = useState<Record<string, string>>({});
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadEmailId, setLeadEmailId] = useState("");
 
   useEffect(() => {
-    if (stage === "triaging" || stage === "generating") {
+    if (stage === "scanning" || stage === "triaging" || stage === "generating") {
       const interval = setInterval(() => {
         setFactIndex((prev) => (prev + 1) % EMAIL_FACTS.length);
       }, 4000);
@@ -78,6 +80,27 @@ export default function Home() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Sync leadEmail to profile test_email column when user becomes authenticated
+  useEffect(() => {
+    if (user && !user.is_anonymous && leadEmail) {
+      const supabase = createClient();
+      if (supabase) {
+        supabase
+          .from("profiles")
+          .update({ test_email: leadEmail })
+          .eq("id", user.id)
+          .then(
+            () => {
+              console.log("Updated test_email with leadEmail", leadEmail);
+            },
+            (err) => {
+              console.error("Failed to update test_email", err);
+            }
+          );
+      }
+    }
+  }, [user, leadEmail]);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -105,6 +128,12 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Scan failed");
       setScan(data);
+      if (data.leadEmail) {
+        setLeadEmail(data.leadEmail);
+      }
+      if (data.leadEmailId) {
+        setLeadEmailId(data.leadEmailId);
+      }
       setStage("scan");
     } catch (e) {
       setError((e as Error).message);
@@ -226,6 +255,8 @@ export default function Home() {
     setTypedAnswer("");
     setFollowUpAnswers({});
     setShowOnboarding(true);
+    setLeadEmail("");
+    setLeadEmailId("");
   }
 
   const isAnswered = current
@@ -312,7 +343,7 @@ export default function Home() {
                   setShowOnboarding(false);
                   setMode("diagnose");
                   setTimeout(() => {
-                    const input = document.querySelector('input[placeholder="yourdomain.com"]') as HTMLInputElement;
+                    const input = document.querySelector('input[placeholder="Enter your email to check DMARC score"]') as HTMLInputElement;
                     if (input) input.focus();
                   }, 100);
                 }}
@@ -334,7 +365,7 @@ export default function Home() {
         <>
           <h1>Why are your emails landing in spam?</h1>
           <p className="lede">
-            Enter your sending domain. We&apos;ll run a live scan of your SPF, DKIM, DMARC and MX
+            Enter your sending email address. We&apos;ll run a live scan of your SPF, DKIM, DMARC and MX
             records, then ask a few quick questions about how you send — and hand you a prioritized,
             plain-English fix list.
           </p>
@@ -342,7 +373,7 @@ export default function Home() {
             <div className="row">
               <input
                 type="text"
-                placeholder="yourdomain.com"
+                placeholder="Enter your email to check DMARC score"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && runScan()}
@@ -361,12 +392,23 @@ export default function Home() {
 
       {mode === "diagnose" && stage === "scanning" && (
         <div className="card" style={{ marginTop: 40 }}>
-          <h1 style={{ fontSize: 24 }}>
-            <span className="spinner" /> &nbsp;Scanning {domain}…
+          <h1 style={{ fontSize: 24, textAlign: "center" }}>
+            <span className="spinner" /> &nbsp;Scanning {domain.includes("@") ? domain.split("@")[1] : domain}…
           </h1>
-          <p className="lede" style={{ marginBottom: 0 }}>
+          <p className="lede" style={{ marginBottom: 20, textAlign: "center" }}>
             Resolving MX, SPF, DKIM and DMARC records from public DNS.
           </p>
+          
+          <div className="email-animation">
+            <div className="envelope">
+              <div className="letter" />
+            </div>
+          </div>
+
+          <div className="loading-carousel">
+            <div className="fact-title">Deliverability Fact</div>
+            <div className="fact-text" key={factIndex}>{EMAIL_FACTS[factIndex]}</div>
+          </div>
         </div>
       )}
 
