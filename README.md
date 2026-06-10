@@ -1,4 +1,4 @@
-# MailCheck — AI Email Deliverability Diagnostic
+# mailCheck — AI Email Deliverability Diagnostic
 
 An interactive, AI-powered tool that diagnoses why a domain's email lands in spam
 and hands back a prioritized, plain-English fix plan.
