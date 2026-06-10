@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         answers: answers ?? {},
         problem_statement: problemStatement || null,
         triage_slots: triageSlots ?? null,
-        markdown: res.markdown,
+        markdown: res.markdown || null,
         final_score: res.finalScore,
         source: res.source,
       })
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
   const llm = getLlm();
   if (!llm) {
-    const res: ReportResponse = { markdown: fallback, source: "fallback", finalScore };
+    const res: ReportResponse = { status: "complete", markdown: fallback, source: "fallback", finalScore };
     await persist(res);
     return NextResponse.json(res);
   }
@@ -81,6 +81,7 @@ export async function POST(req: Request) {
       model: llm.model,
       max_tokens: 2500,
       temperature: 0.4,
+      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: DIAGNOSIS_SYSTEM_PROMPT },
         {
@@ -90,11 +91,24 @@ export async function POST(req: Request) {
       ],
     });
 
-    const markdown = (completion.choices[0]?.message?.content || "").trim();
+    const content = (completion.choices[0]?.message?.content || "").trim();
+    let parsed: any = {};
+    try {
+      parsed = JSON.parse(content);
+    } catch (e) {
+      // If parsing fails completely, fallback
+      parsed = { status: "complete", markdown: content || fallback };
+    }
+
+    const status = parsed.status === "inconclusive" ? "inconclusive" : "complete";
+    const markdown = parsed.markdown || (status === "complete" ? fallback : undefined);
+    const followUpQuestions = parsed.followUpQuestions || undefined;
 
     const res: ReportResponse = {
-      markdown: markdown || fallback,
-      source: markdown ? "ai" : "fallback",
+      status,
+      markdown,
+      followUpQuestions,
+      source: parsed.markdown || parsed.followUpQuestions ? "ai" : "fallback",
       finalScore,
     };
     await persist(res);
@@ -102,6 +116,7 @@ export async function POST(req: Request) {
   } catch (err) {
     // If the LLM call fails for any reason, still return the deterministic report.
     const res: ReportResponse & { warning?: string } = {
+      status: "complete",
       markdown: fallback,
       source: "fallback",
       finalScore,

@@ -413,3 +413,163 @@ textarea:focus { border-color: var(--accent); }
 .problem-input::placeholder {
   color: var(--muted);
 }
+
+/* ---- Onboarding Modal ---- */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 15, 23, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: grid;
+  place-items: center;
+  z-index: 1100;
+  padding: 20px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 500px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 36px 32px;
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.8);
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+.onboarding-card h2 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+
+.onboarding-card p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+.onboarding-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.onboarding-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.onboarding-opt:hover {
+  border-color: var(--accent);
+  background: rgba(79, 140, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+.onboarding-opt-content h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.onboarding-opt-content p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.onboarding-opt-arrow {
+  font-size: 18px;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.onboarding-opt:hover .onboarding-opt-arrow {
+  color: var(--accent);
+}
+
+/* ---- Question Chips ---- */
+.chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.chip {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(79, 140, 255, 0.05);
+}
+
+.chip.active {
+  background: rgba(79, 140, 255, 0.1);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ---- Loading Facts Carousel ---- */
+.loading-container {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-carousel {
+  margin-top: 24px;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.fact-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-2);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.fact-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  max-width: 500px;
+  animation: fadeIn 0.5s ease-in-out;
+}
+

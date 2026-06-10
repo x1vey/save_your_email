@@ -89,8 +89,11 @@ export interface ReportRequest {
 }
 
 export interface ReportResponse {
-  // Markdown body of the prioritized fix plan.
-  markdown: string;
+  status: "complete" | "inconclusive";
+  // Markdown body of the prioritized fix plan (present if complete).
+  markdown?: string;
+  // Dynamic follow-up questions if the LLM needs more info to diagnose.
+  followUpQuestions?: Array<{ id: string; text: string; help?: string }>;
   // Whether this came from the LLM or the deterministic fallback.
   source: "ai" | "fallback";
   finalScore: number;

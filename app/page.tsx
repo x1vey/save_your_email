@@ -12,6 +12,18 @@ type Mode = "diagnose" | "lint";
 
 const MAX_Q = 8;
 
+const EMAIL_FACTS = [
+  "Did you know Gmail warns senders whose complaint rate exceeds 0.1%?",
+  "Email deliverability is a credit balance problem. Every sending decision either builds or spends credit.",
+  "A single hard bounce should be removed immediately. Repeatedly sending to dead addresses is a major spam trigger.",
+  "Sending marketing emails from a subdomain (like mail.yourdomain.com) protects your root domain's reputation.",
+  "If your domain is less than 4 weeks old, it has zero reputation. You must warm it up gradually.",
+  "Click tracking rewrites links through a tracking domain. On a new or damaged domain, turn tracking off to boost placement.",
+  "Google and Yahoo limit hard bounce rates to under 0.5% for bulk senders.",
+  "A reply is the strongest positive engagement signal, indicating a real, wanted conversation.",
+  "Apple MPP (Mail Privacy Protection) causes false opens. Click and reply rates are more reliable signals than open rates."
+];
+
 function scoreColor(s: number) {
   if (s >= 80) return "#34d399";
   if (s >= 55) return "#fbbf24";
@@ -36,6 +48,21 @@ export default function Home() {
 
   // Local question stepper (no per-question API calls).
   const [qIndex, setQIndex] = useState(0);
+
+  // Overhaul states
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [factIndex, setFactIndex] = useState(0);
+  const [typedAnswer, setTypedAnswer] = useState("");
+  const [followUpAnswers, setFollowUpAnswers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (stage === "triaging" || stage === "generating") {
+      const interval = setInterval(() => {
+        setFactIndex((prev) => (prev + 1) % EMAIL_FACTS.length);
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [stage]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -125,6 +152,17 @@ export default function Home() {
   const currentSlotId = triageSlots[qIndex];
   const current: Question | undefined = currentSlotId ? getSlot(currentSlotId) : undefined;
 
+  useEffect(() => {
+    if (current) {
+      setTypedAnswer((answers[current.id] as string) || "");
+    }
+  }, [current, answers]);
+
+  function handleTextareaChange(val: string) {
+    setTypedAnswer(val);
+    setAnswers((prev) => ({ ...prev, [current!.id]: val }));
+  }
+
   function answerCurrent(value: string) {
     if (!current) return;
     setAnswers((prev) => {
@@ -185,12 +223,13 @@ export default function Home() {
     setProblemStatement("");
     setReport(null);
     setError(null);
+    setTypedAnswer("");
+    setFollowUpAnswers({});
+    setShowOnboarding(true);
   }
 
   const isAnswered = current
-    ? current.type === "multi"
-      ? Array.isArray(answers[current.id]) && (answers[current.id] as string[]).length > 0
-      : answers[current.id] !== undefined
+    ? typeof answers[current.id] === "string" && (answers[current.id] as string).trim().length > 0
     : false;
 
   return (
@@ -238,9 +277,56 @@ export default function Home() {
             }
           }}
         >
-          Lint an email
+          Filter spam words
         </button>
       </div>
+
+      {showOnboarding && (
+        <div className="onboarding-overlay">
+          <div className="onboarding-card">
+            <h2>What are you looking for today?</h2>
+            <p>Select an option below to optimize your email deliverability or clean up your copy.</p>
+            <div className="onboarding-options">
+              <div
+                className="onboarding-opt"
+                onClick={() => {
+                  setShowOnboarding(false);
+                  const isRealUser = user && !user.is_anonymous;
+                  if (isRealUser) {
+                    setMode("lint");
+                  } else {
+                    window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
+                  }
+                }}
+              >
+                <div className="onboarding-opt-content">
+                  <h4>Email copy refinement</h4>
+                  <p>Check if your copy triggers spam filters before sending.</p>
+                </div>
+                <div className="onboarding-opt-arrow">→</div>
+              </div>
+
+              <div
+                className="onboarding-opt"
+                onClick={() => {
+                  setShowOnboarding(false);
+                  setMode("diagnose");
+                  setTimeout(() => {
+                    const input = document.querySelector('input[placeholder="yourdomain.com"]') as HTMLInputElement;
+                    if (input) input.focus();
+                  }, 100);
+                }}
+              >
+                <div className="onboarding-opt-content">
+                  <h4>Diagnose my email</h4>
+                  <p>Check SPF, DKIM, and DMARC alignment for your domain.</p>
+                </div>
+                <div className="onboarding-opt-arrow">→</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {mode === "lint" && <LintPanel />}
 
@@ -367,6 +453,10 @@ export default function Home() {
           <p className="lede" style={{ marginBottom: 0 }}>
             Deciding which diagnostic questions to ask based on your scan and problem.
           </p>
+          <div className="loading-carousel">
+            <div className="fact-title">Deliverability Fact</div>
+            <div className="fact-text" key={factIndex}>{EMAIL_FACTS[factIndex]}</div>
+          </div>
         </div>
       )}
 
@@ -379,24 +469,33 @@ export default function Home() {
             <div className="qtext">{current.text}</div>
             {current.help && <div className="qhelp">{current.help}</div>}
           </div>
-          <div>
-            {current.options?.map((opt) => {
-              const sel =
-                current.type === "multi"
-                  ? Array.isArray(answers[current.id]) &&
-                    (answers[current.id] as string[]).includes(opt.value)
-                  : answers[current.id] === opt.value;
-              return (
-                <div
-                  key={opt.value}
-                  className={`opt ${sel ? "sel" : ""}`}
-                  onClick={() => answerCurrent(opt.value)}
-                >
-                  <span className="mark">{sel ? "✓" : ""}</span>
-                  {opt.label}
+          <div className="card" style={{ marginBottom: 20 }}>
+            <textarea
+              rows={4}
+              placeholder="Type your answer here..."
+              value={typedAnswer}
+              onChange={(e) => handleTextareaChange(e.target.value)}
+              style={{ width: "100%", fontFamily: "inherit" }}
+            />
+            {current.options && current.options.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8, fontWeight: 600 }}>
+                  Suggestions (click to fill):
                 </div>
-              );
-            })}
+                <div className="chips-container">
+                  {current.options.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`chip ${typedAnswer === opt.label ? "active" : ""}`}
+                      onClick={() => handleTextareaChange(opt.label)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="steps">
             <button className="ghost" onClick={prevQuestion}>
@@ -407,8 +506,7 @@ export default function Home() {
             </button>
           </div>
           <p className="muted-note">
-            Question {qIndex + 1} of {triageSlots.length} ·{" "}
-            {current.type === "multi" ? "Select all that apply" : "Pick one"}
+            Question {qIndex + 1} of {triageSlots.length} · Free-form input (describe in your own words)
           </p>
         </>
       )}
@@ -421,10 +519,67 @@ export default function Home() {
           <p className="lede" style={{ marginBottom: 0 }}>
             Combining the DNS scan with your answers and prioritizing the fixes.
           </p>
+          <div className="loading-carousel">
+            <div className="fact-title">Deliverability Fact</div>
+            <div className="fact-text" key={factIndex}>{EMAIL_FACTS[factIndex]}</div>
+          </div>
         </div>
       )}
 
-      {mode === "diagnose" && stage === "report" && report && (
+      {mode === "diagnose" && stage === "report" && report && report.status === "inconclusive" && report.followUpQuestions && (
+        <>
+          <h1 style={{ fontSize: 28 }}>Clarifying Details Needed</h1>
+          <p className="lede">
+            Based on your answers, we need a few more details to generate your custom action plan.
+          </p>
+          <div className="card">
+            {report.followUpQuestions.map((q) => (
+              <div key={q.id} style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 6 }}>{q.text}</div>
+                {q.help && <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 8 }}>{q.help}</div>}
+                <textarea
+                  rows={3}
+                  placeholder="Type your answer here..."
+                  value={followUpAnswers[q.id] || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFollowUpAnswers((prev) => ({ ...prev, [q.id]: val }));
+                  }}
+                  style={{ width: "100%", fontFamily: "inherit" }}
+                />
+              </div>
+            ))}
+            <div className="steps" style={{ marginTop: 24 }}>
+              <button
+                className="ghost"
+                onClick={() => {
+                  setReport(null);
+                  setStage("questions");
+                }}
+              >
+                ← Back
+              </button>
+              <button
+                className="primary"
+                disabled={
+                  !report.followUpQuestions.every(
+                    (q) => (followUpAnswers[q.id] || "").trim().length > 0
+                  )
+                }
+                onClick={() => {
+                  const combinedAnswers = { ...answers, ...followUpAnswers };
+                  setAnswers(combinedAnswers);
+                  generateReport(scan!, combinedAnswers);
+                }}
+              >
+                Submit Answers & Generate Plan
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {mode === "diagnose" && stage === "report" && report && report.status !== "inconclusive" && (
         <>
           <h1 style={{ fontSize: 28 }}>Your remediation plan</h1>
           <div className="scoreband">
@@ -442,7 +597,7 @@ export default function Home() {
             </div>
           </div>
           <div className="card">
-            <Markdown source={report.markdown} />
+            <Markdown source={report.markdown || ""} />
           </div>
           <div className="steps">
             <button className="ghost" onClick={reset}>
