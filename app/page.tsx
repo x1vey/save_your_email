@@ -7,6 +7,14 @@ import Markdown from "@/components/Markdown";
 import LintPanel from "@/components/LintPanel";
 import { createClient } from "@/lib/supabase/client";
 
+// Import new 8-bit components
+import { MiniNavbar } from "@/components/ui/sign-in-flow-1";
+import { GameAnimation } from "@/components/game-animation";
+import Team2 from "@/components/ui/8bit-team2";
+import { Button } from "@/components/ui/8bit-button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/8bit-card";
+import { Badge } from "@/components/ui/8bit-badge";
+
 type Stage = "intro" | "scanning" | "scan" | "problem" | "triaging" | "questions" | "generating" | "report";
 type Mode = "diagnose" | "lint";
 
@@ -24,10 +32,10 @@ const EMAIL_FACTS = [
   "Apple MPP (Mail Privacy Protection) causes false opens. Click and reply rates are more reliable signals than open rates."
 ];
 
-function scoreColor(s: number) {
-  if (s >= 80) return "#34d399";
-  if (s >= 55) return "#fbbf24";
-  return "#f87171";
+function scoreColorClass(s: number) {
+  if (s >= 80) return "text-emerald-400 border-emerald-400";
+  if (s >= 55) return "text-amber-400 border-amber-400";
+  return "text-red-400 border-red-400";
 }
 
 export default function Home() {
@@ -40,16 +48,10 @@ export default function Home() {
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [user, setUser] = useState<any>(null);
 
-  // Layer 2: free-text problem statement.
   const [problemStatement, setProblemStatement] = useState("");
-
-  // Triage result: ordered slot IDs from Call 1.
   const [triageSlots, setTriageSlots] = useState<string[]>([]);
-
-  // Local question stepper (no per-question API calls).
   const [qIndex, setQIndex] = useState(0);
 
-  // Overhaul states
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [factIndex, setFactIndex] = useState(0);
   const [typedAnswer, setTypedAnswer] = useState("");
@@ -57,7 +59,6 @@ export default function Home() {
   const [leadEmail, setLeadEmail] = useState("");
   const [leadEmailId, setLeadEmailId] = useState("");
 
-  // Delay the onboarding modal by 5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowOnboarding(true);
@@ -89,7 +90,6 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sync leadEmail to profile test_email column when user becomes authenticated
   useEffect(() => {
     if (user && !user.is_anonymous && leadEmail) {
       const supabase = createClient();
@@ -99,12 +99,8 @@ export default function Home() {
           .update({ test_email: leadEmail })
           .eq("id", user.id)
           .then(
-            () => {
-              console.log("Updated test_email with leadEmail", leadEmail);
-            },
-            (err) => {
-              console.error("Failed to update test_email", err);
-            }
+            () => console.log("Updated test_email with leadEmail", leadEmail),
+            (err) => console.error("Failed to update test_email", err)
           );
       }
     }
@@ -122,7 +118,6 @@ export default function Home() {
     window.dispatchEvent(new Event("open-auth-modal"));
   }
 
-  // --- DNS Scan (Layer 1) ---
   async function runScan() {
     setError(null);
     if (!domain.trim()) return;
@@ -136,12 +131,8 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Scan failed");
       setScan(data);
-      if (data.leadEmail) {
-        setLeadEmail(data.leadEmail);
-      }
-      if (data.leadEmailId) {
-        setLeadEmailId(data.leadEmailId);
-      }
+      if (data.leadEmail) setLeadEmail(data.leadEmail);
+      if (data.leadEmailId) setLeadEmailId(data.leadEmailId);
       setStage("scan");
     } catch (e) {
       setError((e as Error).message);
@@ -149,7 +140,6 @@ export default function Home() {
     }
   }
 
-  // --- Transition from scan results to Layer 2 (problem statement) ---
   function startProblemStep() {
     const isRealUser = user && !user.is_anonymous;
     if (isRealUser) {
@@ -160,7 +150,6 @@ export default function Home() {
     }
   }
 
-  // --- Triage (Call 1) ---
   async function runTriage() {
     if (!scan) return;
     setStage("triaging");
@@ -185,7 +174,6 @@ export default function Home() {
     }
   }
 
-  // --- Local question stepping (no API calls) ---
   const currentSlotId = triageSlots[qIndex];
   const current: Question | undefined = currentSlotId ? getSlot(currentSlotId) : undefined;
 
@@ -200,23 +188,8 @@ export default function Home() {
     setAnswers((prev) => ({ ...prev, [current!.id]: val }));
   }
 
-  function answerCurrent(value: string) {
-    if (!current) return;
-    setAnswers((prev) => {
-      if (current.type === "multi") {
-        const arr = Array.isArray(prev[current.id]) ? [...(prev[current.id] as string[])] : [];
-        const idx = arr.indexOf(value);
-        if (idx >= 0) arr.splice(idx, 1);
-        else arr.push(value);
-        return { ...prev, [current.id]: arr };
-      }
-      return { ...prev, [current.id]: value };
-    });
-  }
-
   function nextQuestion() {
     if (qIndex + 1 >= triageSlots.length) {
-      // All questions answered → generate report.
       generateReport(scan!, answers);
     } else {
       setQIndex(qIndex + 1);
@@ -231,7 +204,6 @@ export default function Home() {
     setQIndex(qIndex - 1);
   }
 
-  // --- Diagnosis (Call 2) ---
   async function generateReport(scanData: ScanResult, answerMap: Answers) {
     setStage("generating");
     setError(null);
@@ -262,7 +234,6 @@ export default function Home() {
     setError(null);
     setTypedAnswer("");
     setFollowUpAnswers({});
-    setShowOnboarding(true);
     setLeadEmail("");
     setLeadEmailId("");
   }
@@ -272,396 +243,321 @@ export default function Home() {
     : false;
 
   return (
-    <main className="wrap">
-      <div className="header-row">
-        <div className="brand">
-          <span className="dot" /> MailCheck
-        </div>
-        {user && (
-          <div className="user-menu">
-            {user.is_anonymous ? (
-              <>
-                <span className="user-name" style={{ color: "var(--muted)" }}>Guest Mode</span>
-                <button className="upgrade-btn" onClick={handleUpgrade}>
-                  Create Account
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="user-name">Hello, {user.user_metadata?.full_name || user.email}</span>
-                <button className="logout-btn" onClick={handleLogout}>
-                  Sign Out
-                </button>
-              </>
-            )}
+    <div className="min-h-screen bg-background retro pb-24 overflow-x-hidden">
+      <MiniNavbar />
+
+      <main className="max-w-4xl mx-auto pt-32 px-4 flex flex-col items-center">
+        
+        {showOnboarding && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-lg bg-white relative">
+              <button 
+                className="absolute top-4 right-4 text-2xl hover:text-red-500"
+                onClick={() => setShowOnboarding(false)}
+              >
+                ×
+              </button>
+              <CardHeader>
+                <CardTitle className="text-xl">What are you looking for today?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-between py-6 text-[10px]"
+                  onClick={() => {
+                    setShowOnboarding(false);
+                    const isRealUser = user && !user.is_anonymous;
+                    if (isRealUser) {
+                      setMode("lint");
+                    } else {
+                      window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
+                    }
+                  }}
+                >
+                  <div className="text-left">
+                    <div className="font-bold">Email copy refinement</div>
+                    <div className="text-gray-500 text-[8px] mt-1">Check if your copy triggers spam filters.</div>
+                  </div>
+                  <span>→</span>
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-between py-6 text-[10px]"
+                  onClick={() => {
+                    setShowOnboarding(false);
+                    setMode("diagnose");
+                  }}
+                >
+                  <div className="text-left">
+                    <div className="font-bold">Diagnose my email</div>
+                    <div className="text-gray-500 text-[8px] mt-1">Check SPF, DKIM, and DMARC alignment.</div>
+                  </div>
+                  <span>→</span>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
-      </div>
 
-      <div className="tabs">
-        <button
-          className={`tab ${mode === "diagnose" ? "active" : ""}`}
-          onClick={() => setMode("diagnose")}
-        >
-          Diagnose domain
-        </button>
-        <button
-          className={`tab ${mode === "lint" ? "active" : ""}`}
-          onClick={() => {
-            const isRealUser = user && !user.is_anonymous;
-            if (isRealUser) {
-              setMode("lint");
-            } else {
-              window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
-            }
-          }}
-        >
-          Filter spam words
-        </button>
-      </div>
-
-      {showOnboarding && (
-        <div className="onboarding-overlay">
-          <div className="onboarding-card">
-            <button className="onboarding-close" onClick={() => setShowOnboarding(false)}>×</button>
-            <h2>What are you looking for today?</h2>
-            <p>Select an option below to optimize your email deliverability or clean up your copy.</p>
-            <div className="onboarding-options">
-              <div
-                className="onboarding-opt"
-                onClick={() => {
-                  setShowOnboarding(false);
-                  const isRealUser = user && !user.is_anonymous;
-                  if (isRealUser) {
-                    setMode("lint");
-                  } else {
-                    window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
-                  }
-                }}
-              >
-                <div className="onboarding-opt-content">
-                  <h4>Email copy refinement</h4>
-                  <p>Check if your copy triggers spam filters before sending.</p>
-                </div>
-                <div className="onboarding-opt-arrow">→</div>
-              </div>
-
-              <div
-                className="onboarding-opt"
-                onClick={() => {
-                  setShowOnboarding(false);
-                  setMode("diagnose");
-                  setTimeout(() => {
-                    const input = document.querySelector('input[placeholder="Enter your email to check DMARC score"]') as HTMLInputElement;
-                    if (input) input.focus();
-                  }, 100);
-                }}
-              >
-                <div className="onboarding-opt-content">
-                  <h4>Diagnose my email</h4>
-                  <p>Check SPF, DKIM, and DMARC alignment for your domain.</p>
-                </div>
-                <div className="onboarding-opt-arrow">→</div>
-              </div>
+        {/* Game Animation Banner Section */}
+        {mode === "diagnose" && stage === "intro" && (
+          <div className="w-full mb-16">
+            <div className="text-center mb-8">
+              <h1 className="text-2xl md:text-4xl font-bold uppercase mb-4 leading-relaxed">
+                Why are your emails<br/>landing in <span className="text-red-500">SPAM</span>?
+              </h1>
+              <p className="text-[10px] text-gray-600 max-w-xl mx-auto leading-loose">
+                Enter your sending email address. We'll run a live scan of your authentication records, then hand you a prioritized fix list to beat the spam filters.
+              </p>
             </div>
-          </div>
-        </div>
-      )}
+            
+            <GameAnimation />
 
-      {mode === "lint" && <LintPanel />}
-
-      {mode === "diagnose" && stage === "intro" && (
-        <>
-          <h1>Why are your emails landing in spam?</h1>
-          <p className="lede">
-            Enter your sending email address. We&apos;ll run a live scan of your SPF, DKIM, DMARC and MX
-            records, then ask a few quick questions about how you send — and hand you a prioritized,
-            plain-English fix list.
-          </p>
-          <div className="card">
-            <div className="row">
-              <input
-                type="text"
-                placeholder="Enter your email to check DMARC score"
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && runScan()}
-              />
-              <button className="primary" onClick={runScan} disabled={!domain.trim()}>
-                Scan domain
-              </button>
-            </div>
-            <p className="muted-note">
-              We only read public DNS records. Nothing is sent on your behalf and no login is required.
-            </p>
-          </div>
-          {error && <div className="err">{error}</div>}
-        </>
-      )}
-
-      {mode === "diagnose" && stage === "scanning" && (
-        <div className="card" style={{ marginTop: 40 }}>
-          <h1 style={{ fontSize: 24, textAlign: "center" }}>
-            <span className="spinner" /> &nbsp;Scanning {domain.includes("@") ? domain.split("@")[1] : domain}…
-          </h1>
-          <p className="lede" style={{ marginBottom: 20, textAlign: "center" }}>
-            Resolving MX, SPF, DKIM and DMARC records from public DNS.
-          </p>
-          
-          <div className="email-animation">
-            <div className="envelope">
-              <div className="letter" />
-            </div>
-          </div>
-
-          <div className="loading-carousel">
-            <div className="fact-title">Deliverability Fact</div>
-            <div className="fact-text" key={factIndex}>{EMAIL_FACTS[factIndex]}</div>
-          </div>
-        </div>
-      )}
-
-      {mode === "diagnose" && stage === "scan" && scan && (
-        <>
-          <h1 style={{ fontSize: 28 }}>
-            Scan results for {scan.domain}
-            {scan.esp && <span className="tag">{scan.esp.name}</span>}
-          </h1>
-          <div className="scoreband">
-            <div
-              className="scorecircle"
-              style={{ border: `4px solid ${scoreColor(scan.techScore)}`, color: scoreColor(scan.techScore) }}
-            >
-              {scan.techScore}
-            </div>
-            <div className="scoremeta">
-              Technical (authentication) score from DNS alone. Describe your problem next so we can
-              ask the right questions and write your fix plan.
-            </div>
-          </div>
-
-          {scan.findings.map((f) => (
-            <div key={f.id} className={`finding ${f.severity}`}>
-              <h4>
-                {f.title}
-                <span className={`badge ${f.severity}`}>{f.severity}</span>
-              </h4>
-              <p>{f.detail}</p>
-              {f.fix && (
-                <p style={{ marginTop: 8 }}>
-                  <strong style={{ color: "var(--text)" }}>Fix:</strong> {f.fix}
-                </p>
-              )}
-              {f.evidence && <pre>{f.evidence}</pre>}
-            </div>
-          ))}
-
-          <div className="steps">
-            <button className="ghost" onClick={reset}>
-              ← Scan another
-            </button>
-            <button className="primary" onClick={startProblemStep}>
-              Continue →
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Layer 2: Free-text problem statement */}
-      {mode === "diagnose" && stage === "problem" && (
-        <>
-          <h1 style={{ fontSize: 28 }}>What problem are you seeing?</h1>
-          <p className="lede">
-            Describe the deliverability issue you&apos;re experiencing — or leave blank if you just
-            want a general health check. This helps us ask the right follow-up questions.
-          </p>
-          <div className="card">
-            <textarea
-              className="problem-input"
-              rows={4}
-              placeholder="e.g. My open rates dropped from 40% to 2% overnight, or I'm setting up a new domain for marketing emails…"
-              value={problemStatement}
-              onChange={(e) => setProblemStatement(e.target.value)}
-            />
-            <div className="steps" style={{ marginTop: 16 }}>
-              <button className="ghost" onClick={() => setStage("scan")}>
-                ← Back to scan
-              </button>
-              <button className="primary" onClick={runTriage}>
-                Continue →
-              </button>
-            </div>
-          </div>
-          {error && <div className="err">{error}</div>}
-        </>
-      )}
-
-      {mode === "diagnose" && stage === "triaging" && (
-        <div className="card" style={{ marginTop: 40 }}>
-          <h1 style={{ fontSize: 24 }}>
-            <span className="spinner" /> &nbsp;Analyzing your situation…
-          </h1>
-          <p className="lede" style={{ marginBottom: 0 }}>
-            Deciding which diagnostic questions to ask based on your scan and problem.
-          </p>
-          <div className="loading-carousel">
-            <div className="fact-title">Deliverability Fact</div>
-            <div className="fact-text" key={factIndex}>{EMAIL_FACTS[factIndex]}</div>
-          </div>
-        </div>
-      )}
-
-      {mode === "diagnose" && stage === "questions" && current && (
-        <>
-          <div className="progress">
-            <div style={{ width: `${((qIndex + 1) / triageSlots.length) * 100}%` }} />
-          </div>
-          <div className="q">
-            <div className="qtext">{current.text}</div>
-            {current.help && <div className="qhelp">{current.help}</div>}
-          </div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <textarea
-              rows={4}
-              placeholder="Type your answer here..."
-              value={typedAnswer}
-              onChange={(e) => handleTextareaChange(e.target.value)}
-              style={{ width: "100%", fontFamily: "inherit" }}
-            />
-            {current.options && current.options.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8, fontWeight: 600 }}>
-                  Suggestions (click to fill):
-                </div>
-                <div className="chips-container">
-                  {current.options.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className={`chip ${typedAnswer === opt.label ? "active" : ""}`}
-                      onClick={() => handleTextareaChange(opt.label)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="steps">
-            <button className="ghost" onClick={prevQuestion}>
-              ← Back
-            </button>
-            <button className="primary" onClick={nextQuestion} disabled={!isAnswered}>
-              {qIndex + 1 >= triageSlots.length ? "Finish" : "Next →"}
-            </button>
-          </div>
-          <p className="muted-note">
-            Question {qIndex + 1} of {triageSlots.length} · Free-form input (describe in your own words)
-          </p>
-        </>
-      )}
-
-      {mode === "diagnose" && stage === "generating" && (
-        <div className="card" style={{ marginTop: 40 }}>
-          <h1 style={{ fontSize: 24 }}>
-            <span className="spinner" /> &nbsp;Writing your fix plan…
-          </h1>
-          <p className="lede" style={{ marginBottom: 0 }}>
-            Combining the DNS scan with your answers and prioritizing the fixes.
-          </p>
-          <div className="loading-carousel">
-            <div className="fact-title">Deliverability Fact</div>
-            <div className="fact-text" key={factIndex}>{EMAIL_FACTS[factIndex]}</div>
-          </div>
-        </div>
-      )}
-
-      {mode === "diagnose" && stage === "report" && report && report.status === "inconclusive" && report.followUpQuestions && (
-        <>
-          <h1 style={{ fontSize: 28 }}>Clarifying Details Needed</h1>
-          <p className="lede">
-            Based on your answers, we need a few more details to generate your custom action plan.
-          </p>
-          <div className="card">
-            {report.followUpQuestions.map((q) => (
-              <div key={q.id} style={{ marginBottom: 20 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 6 }}>{q.text}</div>
-                {q.help && <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 8 }}>{q.help}</div>}
-                <textarea
-                  rows={3}
-                  placeholder="Type your answer here..."
-                  value={followUpAnswers[q.id] || ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFollowUpAnswers((prev) => ({ ...prev, [q.id]: val }));
-                  }}
-                  style={{ width: "100%", fontFamily: "inherit" }}
+            <div className="mt-12 w-full max-w-xl mx-auto">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="text"
+                  placeholder="USER@DOMAIN.COM"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && runScan()}
+                  className="flex-1 bg-white border-4 border-black p-4 text-[10px] uppercase shadow-[4px_4px_0_0_#000] focus:outline-none focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-[2px_2px_0_0_#000] transition-all"
                 />
+                <Button onClick={runScan} disabled={!domain.trim()} className="py-4 px-8 text-[10px]">
+                  SCAN DOMAIN
+                </Button>
               </div>
-            ))}
-            <div className="steps" style={{ marginTop: 24 }}>
-              <button
-                className="ghost"
-                onClick={() => {
-                  setReport(null);
-                  setStage("questions");
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                className="primary"
-                disabled={
-                  !report.followUpQuestions.every(
-                    (q) => (followUpAnswers[q.id] || "").trim().length > 0
-                  )
-                }
-                onClick={() => {
-                  const combinedAnswers = { ...answers, ...followUpAnswers };
-                  setAnswers(combinedAnswers);
-                  generateReport(scan!, combinedAnswers);
-                }}
-              >
-                Submit Answers & Generate Plan
-              </button>
+              <p className="text-[8px] text-gray-400 mt-4 text-center">
+                We only read public DNS records. Nothing is sent on your behalf.
+              </p>
+              {error && <div className="text-red-500 text-[10px] mt-4 text-center border-2 border-red-500 p-2">{error}</div>}
             </div>
           </div>
-        </>
-      )}
+        )}
 
-      {mode === "diagnose" && stage === "report" && report && report.status !== "inconclusive" && (
-        <>
-          <h1 style={{ fontSize: 28 }}>Your remediation plan</h1>
-          <div className="scoreband">
-            <div
-              className="scorecircle"
-              style={{ border: `4px solid ${scoreColor(report.finalScore)}`, color: scoreColor(report.finalScore) }}
-            >
-              {report.finalScore}
+        {mode === "diagnose" && stage === "scanning" && (
+          <Card className="w-full max-w-2xl mx-auto mt-16 p-8 text-center bg-white">
+            <h2 className="text-xl mb-4 animate-pulse">SCANNING {domain.includes("@") ? domain.split("@")[1] : domain}...</h2>
+            <p className="text-[10px] text-gray-500 mb-8">Resolving MX, SPF, DKIM and DMARC records.</p>
+            
+            <div className="bg-gray-100 border-4 border-black p-6 relative shadow-inner">
+               <div className="text-[10px] text-primary mb-2 font-bold">DELIVERABILITY FACT</div>
+               <div className="text-[10px] leading-loose">{EMAIL_FACTS[factIndex]}</div>
             </div>
-            <div className="scoremeta">
-              Overall deliverability score (technical + behavioral).{" "}
-              {report.source === "fallback" && (
-                <em>Generated with the built-in rules engine (no AI key configured).</em>
+          </Card>
+        )}
+
+        {mode === "diagnose" && stage === "scan" && scan && (
+          <div className="w-full max-w-2xl mx-auto space-y-8">
+            <h1 className="text-2xl font-bold uppercase">
+              SCAN RESULTS: {scan.domain}
+            </h1>
+            
+            <div className="flex items-center gap-6 bg-white border-4 border-black p-6 shadow-[4px_4px_0_0_#000]">
+              <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-bold ${scoreColorClass(scan.techScore)}`}>
+                {scan.techScore}
+              </div>
+              <div className="flex-1 text-[10px] leading-loose text-gray-600">
+                Technical (authentication) score from DNS alone. Describe your problem next so we can ask the right questions and write your fix plan.
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {scan.findings.map((f) => (
+                <Card key={f.id} className="relative overflow-visible">
+                  <div className="absolute -top-3 -right-3 z-10">
+                    <Badge variant={f.severity === 'fail' ? 'destructive' : f.severity === 'warn' ? 'secondary' : 'default'} className="text-[10px] py-1">
+                      {f.severity}
+                    </Badge>
+                  </div>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{f.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-[10px] leading-loose text-gray-600">{f.detail}</p>
+                    {f.fix && (
+                      <p className="text-[10px] leading-loose mt-4 border-t-2 border-black pt-2">
+                        <strong className="text-black">FIX: </strong> {f.fix}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex justify-between mt-8">
+              <Button variant="outline" onClick={reset}>← BACK</Button>
+              <Button onClick={startProblemStep}>CONTINUE →</Button>
+            </div>
+          </div>
+        )}
+
+        {mode === "diagnose" && stage === "problem" && (
+          <div className="w-full max-w-2xl mx-auto space-y-8">
+            <h1 className="text-2xl font-bold">WHAT'S THE PROBLEM?</h1>
+            <p className="text-[10px] text-gray-600 leading-loose">
+              Describe the deliverability issue you're experiencing — or leave blank if you just want a general health check.
+            </p>
+            
+            <Card className="p-6 bg-white">
+              <textarea
+                rows={5}
+                placeholder="E.g. My open rates dropped from 40% to 2%..."
+                value={problemStatement}
+                onChange={(e) => setProblemStatement(e.target.value)}
+                className="w-full bg-gray-50 border-4 border-black p-4 text-[10px] leading-loose focus:outline-none focus:bg-white resize-y"
+              />
+              <div className="flex justify-between mt-6">
+                <Button variant="outline" onClick={() => setStage("scan")}>← BACK</Button>
+                <Button onClick={runTriage}>CONTINUE →</Button>
+              </div>
+            </Card>
+            {error && <div className="text-red-500 text-[10px] mt-4">{error}</div>}
+          </div>
+        )}
+
+        {mode === "diagnose" && (stage === "triaging" || stage === "generating") && (
+          <Card className="w-full max-w-2xl mx-auto mt-16 p-8 text-center bg-white">
+            <h2 className="text-xl mb-4 animate-pulse">
+              {stage === "triaging" ? "ANALYZING..." : "WRITING FIX PLAN..."}
+            </h2>
+            <div className="bg-gray-100 border-4 border-black p-6 relative shadow-inner mt-8">
+               <div className="text-[10px] text-primary mb-2 font-bold">DELIVERABILITY FACT</div>
+               <div className="text-[10px] leading-loose">{EMAIL_FACTS[factIndex]}</div>
+            </div>
+          </Card>
+        )}
+
+        {mode === "diagnose" && stage === "questions" && current && (
+          <div className="w-full max-w-2xl mx-auto space-y-8">
+            <div className="h-4 bg-gray-200 border-4 border-black w-full overflow-hidden">
+              <div className="h-full bg-primary" style={{ width: `${((qIndex + 1) / triageSlots.length) * 100}%` }} />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold mb-2 leading-relaxed">{current.text}</h2>
+              {current.help && <p className="text-[10px] text-gray-500 leading-loose">{current.help}</p>}
+            </div>
+
+            <Card className="p-6 bg-white">
+              <textarea
+                rows={4}
+                placeholder="TYPE YOUR ANSWER..."
+                value={typedAnswer}
+                onChange={(e) => handleTextareaChange(e.target.value)}
+                className="w-full bg-gray-50 border-4 border-black p-4 text-[10px] leading-loose focus:outline-none focus:bg-white"
+              />
+              
+              {current.options && current.options.length > 0 && (
+                <div className="mt-6">
+                  <div className="text-[8px] text-gray-500 font-bold mb-4">SUGGESTIONS:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {current.options.map((opt) => (
+                      <Button
+                        key={opt.value}
+                        variant={typedAnswer === opt.label ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleTextareaChange(opt.label)}
+                        className="text-[8px]"
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               )}
+            </Card>
+
+            <div className="flex justify-between items-center mt-8">
+              <Button variant="outline" onClick={prevQuestion}>← BACK</Button>
+              <span className="text-[8px] text-gray-400">Q {qIndex + 1} OF {triageSlots.length}</span>
+              <Button onClick={nextQuestion} disabled={!isAnswered}>
+                {qIndex + 1 >= triageSlots.length ? "FINISH" : "NEXT →"}
+              </Button>
             </div>
           </div>
-          <div className="card">
-            <Markdown source={report.markdown || ""} />
-          </div>
-          <div className="steps">
-            <button className="ghost" onClick={reset}>
-              ← Start over
-            </button>
-            <button className="primary" onClick={() => window.print()}>
-              Print / save PDF
-            </button>
-          </div>
-        </>
-      )}
+        )}
 
-      {error && stage !== "intro" && <div className="err">{error}</div>}
-    </main>
+        {mode === "diagnose" && stage === "report" && report && report.status === "inconclusive" && report.followUpQuestions && (
+          <div className="w-full max-w-2xl mx-auto space-y-8">
+            <h1 className="text-2xl font-bold">NEED MORE DATA</h1>
+            <p className="text-[10px] text-gray-600 leading-loose">
+              We need a few more details to generate your custom action plan.
+            </p>
+            <Card className="p-6 bg-white space-y-6">
+              {report.followUpQuestions.map((q) => (
+                <div key={q.id}>
+                  <div className="font-bold text-sm mb-2">{q.text}</div>
+                  {q.help && <div className="text-[8px] text-gray-500 mb-4">{q.help}</div>}
+                  <textarea
+                    rows={3}
+                    placeholder="TYPE ANSWER..."
+                    value={followUpAnswers[q.id] || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFollowUpAnswers((prev) => ({ ...prev, [q.id]: val }));
+                    }}
+                    className="w-full bg-gray-50 border-4 border-black p-4 text-[10px] leading-loose focus:outline-none focus:bg-white"
+                  />
+                </div>
+              ))}
+              <div className="flex justify-between mt-8">
+                <Button variant="outline" onClick={() => { setReport(null); setStage("questions"); }}>← BACK</Button>
+                <Button
+                  disabled={!report.followUpQuestions.every((q) => (followUpAnswers[q.id] || "").trim().length > 0)}
+                  onClick={() => {
+                    const combinedAnswers = { ...answers, ...followUpAnswers };
+                    setAnswers(combinedAnswers);
+                    generateReport(scan!, combinedAnswers);
+                  }}
+                >
+                  SUBMIT
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {mode === "diagnose" && stage === "report" && report && report.status !== "inconclusive" && (
+          <div className="w-full max-w-3xl mx-auto space-y-8">
+            <h1 className="text-2xl font-bold">REMEDIATION PLAN</h1>
+            
+            <div className="flex items-center gap-6 bg-white border-4 border-black p-6 shadow-[4px_4px_0_0_#000]">
+              <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-bold ${scoreColorClass(report.finalScore)}`}>
+                {report.finalScore}
+              </div>
+              <div className="flex-1 text-[10px] leading-loose text-gray-600">
+                Overall deliverability score (technical + behavioral).
+              </div>
+            </div>
+
+            <Card className="p-8 bg-white MarkdownContent text-[10px] leading-loose">
+               <style dangerouslySetInnerHTML={{__html:`
+                 .MarkdownContent h1, .MarkdownContent h2, .MarkdownContent h3 { font-family: 'Press Start 2P', monospace; margin-top: 2rem; margin-bottom: 1rem; line-height: 1.5; }
+                 .MarkdownContent p, .MarkdownContent li { font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 2; margin-bottom: 1rem; }
+                 .MarkdownContent code { background: #eee; padding: 4px; border: 2px solid #000; font-family: monospace; font-size: 12px; }
+                 .MarkdownContent pre { background: #111; color: #fff; padding: 1rem; border: 4px solid #000; overflow-x: auto; margin-bottom: 1rem; }
+                 .MarkdownContent pre code { background: none; border: none; color: #0f0; }
+               `}} />
+              <Markdown source={report.markdown || ""} />
+            </Card>
+
+            <div className="flex justify-between mt-8">
+              <Button variant="outline" onClick={reset}>START OVER</Button>
+              <Button onClick={() => window.print()}>PRINT PDF</Button>
+            </div>
+          </div>
+        )}
+
+        {/* FAQ/Changelog Section at Bottom */}
+        {mode === "diagnose" && stage === "intro" && (
+          <div className="mt-24 w-full">
+            <Team2 />
+          </div>
+        )}
+
+      </main>
+    </div>
   );
 }
