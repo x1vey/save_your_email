@@ -50,12 +50,20 @@ export default function Home() {
   const [qIndex, setQIndex] = useState(0);
 
   // Overhaul states
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [factIndex, setFactIndex] = useState(0);
   const [typedAnswer, setTypedAnswer] = useState("");
   const [followUpAnswers, setFollowUpAnswers] = useState<Record<string, string>>({});
   const [leadEmail, setLeadEmail] = useState("");
   const [leadEmailId, setLeadEmailId] = useState("");
+
+  // Delay the onboarding modal by 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowOnboarding(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (stage === "scanning" || stage === "triaging" || stage === "generating") {
@@ -315,6 +323,7 @@ export default function Home() {
       {showOnboarding && (
         <div className="onboarding-overlay">
           <div className="onboarding-card">
+            <button className="onboarding-close" onClick={() => setShowOnboarding(false)}>×</button>
             <h2>What are you looking for today?</h2>
             <p>Select an option below to optimize your email deliverability or clean up your copy.</p>
             <div className="onboarding-options">
