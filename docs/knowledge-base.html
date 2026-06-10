@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Deliverability Knowledge Base</title>
+<!--
+  EMAIL DELIVERABILITY KNOWLEDGE BASE
+  =====================================
+  Sources: Apache SpamAssassin source (rules/20_phrases.cf, 50_scores.cf,
+  20_html_tests.cf, 20_head_tests.cf, 20_ratware.cf), RFC 7208 (SPF),
+  RFC 6376 (DKIM), RFC 7489 (DMARC), RFC 8058 (one-click unsubscribe),
+  RFC 8461 (MTA-STS), RFC 8460 (TLS-RPT), Google/Yahoo 2024 bulk sender
+  requirements, Google Postmaster Tools documentation, Microsoft SNDS.
+
+  NOTE: The machine-usable core of this document is transcribed into
+  lib/kb.ts, which is the single source of truth the app reads from.
+  This file is the canonical human-readable reference.
+-->
+<style>
+  body { font-family: system-ui, sans-serif; line-height: 1.6; max-width: 1100px; margin: 0 auto; padding: 24px; color: #1a1a1a; }
+  h1 { font-size: 22px; font-weight: 600; border-bottom: 2px solid #e2e2e2; padding-bottom: 12px; }
+  h2 { font-size: 17px; font-weight: 600; margin-top: 32px; padding: 8px 12px; border-radius: 6px; }
+  h3 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; }
+  .section-auth { background: #EEF2FF; color: #3730A3; }
+  .section-rep  { background: #ECFDF5; color: #065F46; }
+  .section-content { background: #FFFBEB; color: #78350F; }
+  .section-infra { background: #EFF6FF; color: #1E3A5F; }
+  .section-list { background: #FDF4FF; color: #581C87; }
+  .section-diag { background: #FFF1F2; color: #881337; }
+  .node { border-left: 3px solid #e2e2e2; margin: 8px 0 8px 16px; padding: 8px 12px; background: #fafafa; border-radius: 0 6px 6px 0; }
+  .node.critical { border-color: #E24B4A; }
+  .node.build    { border-color: #1D9E75; }
+  .node.practice { border-color: #BA7517; }
+  .node.check    { border-color: #534AB7; }
+  .node.ok       { border-color: #639922; }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 20px; font-weight: 600; margin-left: 8px; vertical-align: middle; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .tag { font-size: 11px; padding: 2px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 12px; color: #444; font-family: monospace; }
+  .score { color: #1d4ed8; font-weight: 600; }
+  pre { background: #f4f4f4; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { background: #f0f0f0; padding: 8px; text-align: left; border: 1px solid #ddd; }
+  td { padding: 8px; border: 1px solid #ddd; }
+  .if-else { background: #f8f8f8; border: 1px solid #e2e2e2; border-radius: 6px; padding: 12px; margin: 8px 0; font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<h1>📧 Email Deliverability Knowledge Base</h1>
+<p><em>Data sourced from Apache SpamAssassin rule sets, RFCs, Google/Yahoo 2024 sender requirements, and ISP postmaster documentation. Machine-usable core: <code>lib/kb.ts</code>.</em></p>
+
+<h2 class="section-auth" id="auth">🔐 1. Email Authentication</h2>
+<div class="if-else">DIAGNOSTIC PRIORITY ORDER:
+  1. Technical setup (SPF/DKIM/DMARC) — fix first; broken auth undermines everything
+  2. Blacklist check — if listed, resolve before any other action
+  3. Content score — run through mail-tester.com; target &lt; 2.0
+  4. List quality — audit bounce rate, complaint rate, opt-in source
+  5. Reputation building — slowest to fix; requires weeks of clean sending</div>
+
+<table>
+  <tr><th>SPF Result</th><th>SpamAssassin Score</th><th>Action</th></tr>
+  <tr><td>PASS</td><td class="score">-0.001</td><td>Good</td></tr>
+  <tr><td>SOFTFAIL (~all)</td><td class="score">+0.972</td><td>Testing only</td></tr>
+  <tr><td>FAIL (-all)</td><td class="score">+2.6</td><td>Fix immediately</td></tr>
+  <tr><td>NEUTRAL (?all)</td><td class="score">+0.652</td><td>Avoid long-term</td></tr>
+  <tr><td>PERMERROR (&gt;10 lookups)</td><td>Treated as FAIL</td><td>Flatten SPF</td></tr>
+</table>
+
+<table>
+  <tr><th>DMARC Policy</th><th>SA Score</th><th>When</th></tr>
+  <tr><td>p=none</td><td class="score">+0.898</td><td>New domains — monitor 2–4 weeks</td></tr>
+  <tr><td>p=quarantine</td><td class="score">+1.198</td><td>After confirming senders</td></tr>
+  <tr><td>p=reject</td><td class="score">+1.797</td><td>Goal; required for BIMI</td></tr>
+</table>
+
+<p><strong>GWorkspace edge case:</strong> DMARC may show FAIL but emails still land — SPF may pass independently and Google applies its own heuristics. Not a reliable state; fix alignment properly but do not over-alarm.</p>
+
+<h2 class="section-rep" id="rep">📈 2. Sender &amp; Domain Reputation</h2>
+<h3>Engagement Signal Hierarchy</h3>
+<table>
+  <tr><th>Signal</th><th>Weight</th></tr>
+  <tr><td>Reply</td><td>🟢 Highest positive</td></tr>
+  <tr><td>Open</td><td>🟡 Moderate (Apple MPP false opens)</td></tr>
+  <tr><td>Click</td><td>🟡 Moderate (tracking domain reputation)</td></tr>
+  <tr><td>Ignored / deleted unread</td><td>🔴 Slow negative — sunset 60–90 days</td></tr>
+  <tr><td>Unsubscribe</td><td>🟠 Minor negative</td></tr>
+  <tr><td>Spam complaint</td><td>🔴 Heavy negative — 0.1% threshold</td></tr>
+</table>
+
+<h3>IP Warming Schedule</h3>
+<table>
+  <tr><th>Day Range</th><th>Daily Volume</th><th>Requirement</th></tr>
+  <tr><td>Days 1–3</td><td>50–200</td><td>Most engaged segment only</td></tr>
+  <tr><td>Days 4–7</td><td>200–500</td><td>Open rate &gt;20%, complaint &lt;0.1%</td></tr>
+  <tr><td>Week 2</td><td>500–2,000</td><td>Continue monitoring</td></tr>
+  <tr><td>Week 3</td><td>2,000–10,000</td><td>Expand to warm segments</td></tr>
+  <tr><td>Week 4–6</td><td>10,000–50,000</td><td>Full list if metrics healthy</td></tr>
+  <tr><td>Week 6–8</td><td>50,000–100,000+</td><td>Full volume</td></tr>
+</table>
+<p>Double volume every 2–3 days if healthy. Stop if open rate drops below 20%.</p>
+
+<h3>Complaint Thresholds</h3>
+<table>
+  <tr><td>&gt; 0.08%</td><td>Monitor (Google target)</td></tr>
+  <tr><td>&gt; 0.10%</td><td>Google Postmaster warning</td></tr>
+  <tr><td>&gt; 0.30%</td><td>Google/Yahoo enforcement begins</td></tr>
+</table>
+
+<h2 class="section-content" id="content">📝 3. Content &amp; Spam Filter Scoring</h2>
+<p>SpamAssassin threshold ≥ 5.0 = spam; target &lt; 2.0. Rules are additive.</p>
+<table>
+  <tr><th>Rule</th><th>Score</th></tr>
+  <tr><td>DRUGS_SMEAR1</td><td class="score">+3.300</td></tr>
+  <tr><td>DEAR_WINNER</td><td class="score">+3.099</td></tr>
+  <tr><td>FUZZY_PHARMACY</td><td class="score">+2.960</td></tr>
+  <tr><td>DRUG_ED_CAPS / FUZZY_PHENT</td><td class="score">+2.799</td></tr>
+  <tr><td>DEAR_FRIEND</td><td class="score">+2.683</td></tr>
+  <tr><td>DRUGS_DIET</td><td class="score">+2.660</td></tr>
+  <tr><td>BANKING_LAWS / EXCUSE_4 ("To Be Removed, Please")</td><td class="score">+2.399</td></tr>
+  <tr><td>FUZZY_PRICES</td><td class="score">+2.311</td></tr>
+  <tr><td>MISSING_SUBJECT</td><td class="score">+2.195</td></tr>
+  <tr><td>FUZZY_CREDIT</td><td class="score">+1.678</td></tr>
+  <tr><td>BODY_ENHANCEMENT</td><td class="score">+1.611</td></tr>
+  <tr><td>BILLION_DOLLARS</td><td class="score">+1.451</td></tr>
+  <tr><td>BANG_GUAR ("guarantee!")</td><td class="score">+1.000</td></tr>
+</table>
+<p><strong>HTML rules:</strong> HTML_IMAGE_ONLY, HTML_IMAGE_RATIO (&lt;0.8% text), HTML_FONT_LOW_CONTRAST, HTML_OBFUSCATE, HTML_TAG_BALANCE, HTML_BADTAG.</p>
+<p><strong>Subject:</strong> SUBJ_ALL_CAPS, PLING_QUERY, MISSING_SUBJECT (+2.195), SUBJ_DOLLARS, GAPPY_SUBJECT. <strong>From:</strong> FROM_BLANK_NAME, FROM_STARTS_WITH_NUMS, FROM_NO_USER, FROM_DOMAIN_NOVOWEL.</p>
+<p><strong>Sending patterns:</strong> plain-text 1:1 = personal/transactional (lowest scores); drip 1/min mimics human MUA → non-marketing; HTML newsletter = bulk/marketing (needs higher reputation).</p>
+
+<h2 class="section-infra" id="infra">⚙️ 4. Infrastructure &amp; Hedging</h2>
+<div class="node practice">
+  <strong>Hedging:</strong> using surplus capacity and reputation to absorb the cost of richer content (images, HTML, links).<br>
+  <strong>Formula:</strong> capacity 100k/day at 40% open, sending only 20k/day → 80k/day headroom → can include images/links/HTML and still hold open rates.<br>
+  <strong>Rule:</strong> build capacity FIRST, add content risk SECOND. Never approach capacity limits while experimenting. Never send &gt;25% over historical max on a new day.
+</div>
+<h3>Bounce Rate Thresholds</h3>
+<table>
+  <tr><td>&lt; 0.5%</td><td>Good</td></tr>
+  <tr><td>0.5–2%</td><td>Acceptable — validate new additions</td></tr>
+  <tr><td>&gt; 2%</td><td>Validate before next send</td></tr>
+  <tr><td>&gt; 5%</td><td>Stop bulk sending; full audit</td></tr>
+  <tr><td>&gt; 10%</td><td>ESP may suspend account</td></tr>
+</table>
+<p>5xx hard bounce → remove immediately. 4xx soft → retry up to 72h. 3+ consecutive soft → treat as hard. Ports: 587 STARTTLS / 465 implicit TLS recommended; 25 = relay only.</p>
+
+<h2 class="section-list" id="list">🗂️ 5. List Hygiene</h2>
+<p>Purchased/scraped → STOP (spam traps; violates CAN-SPAM/CASL/GDPR). Avoid role addresses: info@, admin@, sales@, webmaster@, postmaster@, noc@, abuse@, hostmaster@, support@, contact@, help@, billing@.</p>
+<table>
+  <tr><th>Segment</th><th>Last Engagement</th><th>Action</th></tr>
+  <tr><td>Active</td><td>0–30 days</td><td>All campaigns; test new content here</td></tr>
+  <tr><td>Warm</td><td>31–90 days</td><td>Include with monitoring</td></tr>
+  <tr><td>Cold</td><td>91–180 days</td><td>Exclude; run re-engagement</td></tr>
+  <tr><td>Lapsed</td><td>&gt;180 days</td><td>2–3 email re-engagement then suppress</td></tr>
+  <tr><td>Suppressed</td><td>Never</td><td>Keep in suppression list</td></tr>
+</table>
+<p><strong>Spam traps:</strong> pristine (bought/scraped → immediate blacklist), recycled (old list → reputation damage), typo (no validation → minor). Validation tools: ZeroBounce, NeverBounce, BriteVerify, Kickbox.</p>
+
+<h2 class="section-diag" id="diag">🔧 6. Diagnostics</h2>
+<h3>Healthy Metric Ranges</h3>
+<table>
+  <tr><th>Metric</th><th>Good</th><th>Concern</th><th>Critical</th></tr>
+  <tr><td>Open rate (cold)</td><td>&gt;40%</td><td>15–40%</td><td>&lt;15%</td></tr>
+  <tr><td>Open rate (newsletter)</td><td>&gt;25%</td><td>10–25%</td><td>&lt;10%</td></tr>
+  <tr><td>CTR</td><td>&gt;3%</td><td>1–3%</td><td>&lt;1%</td></tr>
+  <tr><td>Hard bounce</td><td>&lt;0.5%</td><td>0.5–2%</td><td>&gt;2%</td></tr>
+  <tr><td>Spam complaint</td><td>&lt;0.08%</td><td>0.08–0.10%</td><td>&gt;0.10%</td></tr>
+  <tr><td>Unsubscribe</td><td>&lt;0.2%</td><td>0.2–0.5%</td><td>&gt;0.5%</td></tr>
+</table>
+<h3>SMTP Error Codes</h3>
+<table>
+  <tr><td>250</td><td>Accepted</td></tr>
+  <tr><td>421/450/451/452</td><td>Soft — retry up to 72h</td></tr>
+  <tr><td>521 / 550 / 551 / 553</td><td>Hard — remove from list</td></tr>
+  <tr><td>554</td><td>Transaction failed / spam rejection — check blacklists &amp; content</td></tr>
+</table>
+<p><strong>Tools:</strong> mail-tester.com, MXToolbox SuperTool, Google Postmaster Tools, Microsoft SNDS, learndmarc.com (free); GlockApps, Litmus, EmailOnAcid (paid).</p>
+
+<hr>
+<p style="font-size:12px;color:#888;">Canonical reference. Machine-usable core lives in <code>lib/kb.ts</code>. Sources: Apache SpamAssassin, RFC 7208/6376/7489/8058/8461/8460, Google Postmaster Tools, Microsoft SNDS.</p>
+
+</body>
+</html>

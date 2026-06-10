@@ -1,0 +1,11 @@
+
+> mailcheck@0.1.0 start
+> next start
+
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3414
+   - Network:      http://192.168.0.243:3414
+
+ ✓ Starting...
+ ✓ Ready in 555ms
+[ratelimit] Upstash not configured — rate limiting is DISABLED.
