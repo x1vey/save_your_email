@@ -87,8 +87,13 @@ export default function Home() {
 
   // --- Transition from scan results to Layer 2 (problem statement) ---
   function startProblemStep() {
-    setProblemStatement("");
-    setStage("problem");
+    const isRealUser = user && !user.is_anonymous;
+    if (isRealUser) {
+      setProblemStatement("");
+      setStage("problem");
+    } else {
+      window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
+    }
   }
 
   // --- Triage (Call 1) ---
@@ -224,7 +229,14 @@ export default function Home() {
         </button>
         <button
           className={`tab ${mode === "lint" ? "active" : ""}`}
-          onClick={() => setMode("lint")}
+          onClick={() => {
+            const isRealUser = user && !user.is_anonymous;
+            if (isRealUser) {
+              setMode("lint");
+            } else {
+              window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
+            }
+          }}
         >
           Lint an email
         </button>

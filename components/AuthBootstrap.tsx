@@ -10,6 +10,7 @@ export default function AuthBootstrap() {
   const [configured, setConfigured] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<"signup" | "login">("signup");
+  const [allowGuest, setAllowGuest] = useState(true);
 
   // Form states
   const [fullName, setFullName] = useState("");
@@ -31,13 +32,6 @@ export default function AuthBootstrap() {
     // Initial check
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      const isDismissed = sessionStorage.getItem("mailcheck:dismissed-auth") === "true";
-      const isAnon = data.session?.user?.is_anonymous;
-
-      // Show modal if not logged in at all, or if in anonymous mode and not dismissed
-      if (!data.session || (isAnon && !isDismissed)) {
-        setIsOpen(true);
-      }
       setChecking(false);
     });
 
@@ -46,18 +40,13 @@ export default function AuthBootstrap() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      const isAnon = newSession?.user?.is_anonymous;
-      const isDismissed = sessionStorage.getItem("mailcheck:dismissed-auth") === "true";
-
-      if (!newSession || (isAnon && !isDismissed)) {
-        setIsOpen(true);
-      } else {
-        setIsOpen(false);
-      }
     });
 
     // Global event listener to trigger modal open (e.g. upgrade from header)
-    const handleOpen = () => {
+    const handleOpen = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const allowGuestVal = customEvent.detail?.allowGuest !== false;
+      setAllowGuest(allowGuestVal);
       setTab("signup");
       setIsOpen(true);
     };
@@ -263,11 +252,13 @@ export default function AuthBootstrap() {
           )}
         </div>
 
-        <div className="auth-guest">
-          <button onClick={handleGuest} disabled={loading}>
-            Continue as Guest (Anonymous)
-          </button>
-        </div>
+        {allowGuest && (
+          <div className="auth-guest">
+            <button onClick={handleGuest} disabled={loading}>
+              Continue as Guest (Anonymous)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
