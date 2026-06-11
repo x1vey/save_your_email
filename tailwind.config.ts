@@ -50,6 +50,13 @@ module.exports = {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",
         },
+        paper: "var(--paper)",
+        ink: "var(--ink)",
+        "crt-green": "var(--crt-green)",
+        hazard: "var(--hazard)",
+        sky: "var(--sky)",
+        gold: "var(--gold)",
+        grape: "var(--grape)",
       },
       borderRadius: {
         lg: "var(--radius)",

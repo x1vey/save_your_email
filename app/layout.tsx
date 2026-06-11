@@ -8,12 +8,15 @@ export const metadata: Metadata = {
     "Find out why your emails land in spam. Live SPF/DKIM/DMARC scan plus an AI-guided audit of your sending practices, with concrete fixes.",
 };
 
+import { Toaster } from "@/components/ui/sonner";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body suppressHydrationWarning>
         <AuthBootstrap />
         {children}
+        <Toaster />
       </body>
     </html>
   );

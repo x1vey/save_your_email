@@ -1,29 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 0%; /* Pure Black */
-    --foreground: 120 100% 40%; /* Terminal Green */
-    --card: 0 0% 5%;
-    --card-foreground: 120 100% 40%;
-    --popover: 0 0% 5%;
-    --popover-foreground: 120 100% 40%;
-    --primary: 120 100% 40%; /* Terminal Green */
-    --primary-foreground: 0 0% 0%; /* Black text on green */
-    --secondary: 120 50% 20%;
-    --secondary-foreground: 120 100% 40%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 120 30% 50%;
-    --accent: 120 50% 20%;
-    --accent-foreground: 120 100% 40%;
-    --destructive: 0 100% 50%; /* Red */
-    --destructive-foreground: 0 0% 0%;
-    --border: 120 100% 40%; /* Green Borders */
-    --input: 120 100% 40%;
-    --ring: 120 100% 40%;
-    --radius: 0rem; /* Blocky edges */
+    --radius: 0px;
+    --paper: #f4ecd8;
+    --ink: #1a1a1a;
+    --crt-green: #22c55e;
+    --hazard: #ef4444;
+    --sky: #3b82f6;
+    --gold: #facc15;
+    --grape: #a855f7;
+
+    --background: #f4ecd8;
+    --foreground: #1a1a1a;
+    --card: #fffaf0;
+    --card-foreground: #1a1a1a;
+    --popover: #fffaf0;
+    --popover-foreground: #1a1a1a;
+    --primary: #1a1a1a;
+    --primary-foreground: #f4ecd8;
+    --secondary: #facc15;
+    --secondary-foreground: #1a1a1a;
+    --muted: #e8dfc4;
+    --muted-foreground: #4a4a4a;
+    --accent: #22c55e;
+    --accent-foreground: #1a1a1a;
+    --destructive: #ef4444;
+    --destructive-foreground: #f4ecd8;
+    --border: #1a1a1a;
+    --input: #1a1a1a;
+    --ring: #1a1a1a;
+  }
+
+  .dark {
+    --paper: #0f1020;
+    --ink: #f4ecd8;
+    --background: #0f1020;
+    --foreground: #f4ecd8;
+    --card: #1a1b35;
+    --card-foreground: #f4ecd8;
+    --popover: #1a1b35;
+    --popover-foreground: #f4ecd8;
+    --primary: #f4ecd8;
+    --primary-foreground: #0f1020;
+    --secondary: #facc15;
+    --secondary-foreground: #0f1020;
+    --muted: #2a2b45;
+    --muted-foreground: #b8b0a0;
+    --accent: #22c55e;
+    --accent-foreground: #0f1020;
+    --destructive: #ef4444;
+    --destructive-foreground: #f4ecd8;
+    --border: #f4ecd8;
+    --input: #f4ecd8;
+    --ring: #f4ecd8;
   }
 }
  
@@ -33,38 +66,106 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-mono-pixel, 'VT323', ui-monospace, monospace);
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-pixel, 'Press Start 2P', system-ui, monospace);
+    line-height: 1.3;
+  }
+  img {
+    image-rendering: pixelated;
   }
 }
 
-/* 8-bit / Terminal styling */
-@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+/* 8-bit / Terminal fonts */
 
-.retro {
-  font-family: 'VT323', monospace;
-  text-transform: uppercase;
-  font-size: 1.25rem;
+@layer utilities {
+  .pixel-border {
+    border: 4px solid var(--ink);
+    box-shadow: 6px 6px 0 0 var(--ink);
+  }
+
+  .pixel-border-sm {
+    border: 3px solid var(--ink);
+    box-shadow: 4px 4px 0 0 var(--ink);
+  }
+
+  .pixel-border-lg {
+    border: 5px solid var(--ink);
+    box-shadow: 8px 8px 0 0 var(--ink);
+  }
+
+  .pixel-press {
+    transition: transform 80ms steps(2), box-shadow 80ms steps(2);
+  }
+  .pixel-press:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 0 var(--ink);
+  }
+  .pixel-press:active {
+    transform: translate(4px, 4px);
+    box-shadow: 2px 2px 0 0 var(--ink);
+  }
+
+  .scanlines {
+    position: relative;
+  }
+  .scanlines::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(0, 0, 0, 0.08) 2px,
+      rgba(0, 0, 0, 0.08) 4px
+    );
+  }
+
+  .text-pixel-shadow {
+    text-shadow: 3px 3px 0 var(--ink);
+  }
+
+  .animate-blink {
+    animation: blink 1s steps(2) infinite;
+  }
+
+  .animate-pixel-float {
+    animation: pixel-float 1.4s steps(4) infinite;
+  }
+
+  .font-pixel {
+    font-family: 'Press Start 2P', system-ui, monospace;
+  }
+  
+  .font-mono-pixel {
+    font-family: 'VT323', ui-monospace, monospace;
+  }
 }
 
-.pixelated {
-  image-rendering: pixelated;
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
 
-/* Base custom classes to maintain old functionality briefly while we migrate */
+@keyframes pixel-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes scroll-bg {
+  from { background-position: 0 0; }
+  to { background-position: -512px 0; }
+}
+
+/* Spinner used in old code, keeping it for compatibility */
 .spinner {
   width: 20px; height: 20px; border-radius: 50%;
   border: 2.5px solid rgba(0,0,0,0.1); border-top-color: var(--accent);
   animation: spin .7s linear infinite; display: inline-block; vertical-align: middle;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* Game animation utilities */
-@keyframes ogre-walk {
-  0% { transform: translateY(0px) scaleX(1); }
-  50% { transform: translateY(-4px) scaleX(1); }
-  100% { transform: translateY(0px) scaleX(1); }
-}
-
-@keyframes pixel-fall {
-  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(100px) rotate(90deg); opacity: 0; }
-}

@@ -4,19 +4,24 @@ import { useState, useEffect } from "react";
 import type { Answers, Question, ScanResult, ReportResponse, TriageResult } from "@/lib/types";
 import { QUESTIONS, getSlot } from "@/lib/questions";
 import Markdown from "@/components/Markdown";
-import LintPanel from "@/components/LintPanel";
 import { createClient } from "@/lib/supabase/client";
 
 // Import new 8-bit components
-import { MiniNavbar } from "@/components/ui/sign-in-flow-1";
-import { GameAnimation } from "@/components/game-animation";
-import Team2 from "@/components/ui/8bit-team2";
-import { Button } from "@/components/ui/8bit-button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/8bit-card";
-import { Badge } from "@/components/ui/8bit-badge";
+import { PixelLayout } from "@/components/pixel/PixelLayout";
+import { PixelButton } from "@/components/pixel/PixelButton";
+import { PixelCard, PixelBadge } from "@/components/pixel/PixelCard";
+import { OgreEmailGame } from "@/components/pixel/OgreEmailGame";
+import { EmailCheckPanel } from "@/components/pixel/EmailCheckPanel";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import Link from "next/link";
 
 type Stage = "intro" | "scanning" | "scan" | "problem" | "triaging" | "questions" | "generating" | "report";
-type Mode = "diagnose" | "lint";
+type Mode = "dmarc" | "spam";
 
 const MAX_Q = 8;
 
@@ -33,13 +38,13 @@ const EMAIL_FACTS = [
 ];
 
 function scoreColorClass(s: number) {
-  if (s >= 80) return "text-emerald-400 border-emerald-400";
-  if (s >= 55) return "text-amber-400 border-amber-400";
-  return "text-red-400 border-red-400";
+  if (s >= 80) return "text-crt-green border-crt-green";
+  if (s >= 55) return "text-gold border-gold";
+  return "text-hazard border-hazard";
 }
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>("diagnose");
+  const [mode, setMode] = useState<Mode>("dmarc");
   const [stage, setStage] = useState<Stage>("intro");
   const [domain, setDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -52,19 +57,11 @@ export default function Home() {
   const [triageSlots, setTriageSlots] = useState<string[]>([]);
   const [qIndex, setQIndex] = useState(0);
 
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [factIndex, setFactIndex] = useState(0);
   const [typedAnswer, setTypedAnswer] = useState("");
   const [followUpAnswers, setFollowUpAnswers] = useState<Record<string, string>>({});
   const [leadEmail, setLeadEmail] = useState("");
   const [leadEmailId, setLeadEmailId] = useState("");
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowOnboarding(true);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (stage === "scanning" || stage === "triaging" || stage === "generating") {
@@ -106,27 +103,17 @@ export default function Home() {
     }
   }, [user, leadEmail]);
 
-  async function handleLogout() {
-    const supabase = createClient();
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    sessionStorage.removeItem("mailcheck:dismissed-auth");
-  }
-
-  function handleUpgrade() {
-    sessionStorage.removeItem("mailcheck:dismissed-auth");
-    window.dispatchEvent(new Event("open-auth-modal"));
-  }
-
-  async function runScan() {
+  async function runScan(inputEmail: string) {
+    const inputDomain = inputEmail.includes("@") ? inputEmail.split("@")[1] : inputEmail;
+    setDomain(inputDomain);
     setError(null);
-    if (!domain.trim()) return;
+    if (!inputDomain.trim()) return;
     setStage("scanning");
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain }),
+        body: JSON.stringify({ domain: inputDomain, email: inputEmail }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Scan failed");
@@ -243,278 +230,307 @@ export default function Home() {
     : false;
 
   return (
-    <div className="min-h-screen bg-background retro pb-24 overflow-x-hidden">
-      <MiniNavbar />
-
-      <main className="max-w-4xl mx-auto pt-32 px-4 flex flex-col items-center">
-        
-        {showOnboarding && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-lg bg-white relative">
-              <button 
-                className="absolute top-4 right-4 text-2xl hover:text-red-500"
-                onClick={() => setShowOnboarding(false)}
-              >
-                ×
-              </button>
-              <CardHeader>
-                <CardTitle className="text-xl">What are you looking for today?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-between py-6 text-[10px]"
-                  onClick={() => {
-                    setShowOnboarding(false);
-                    const isRealUser = user && !user.is_anonymous;
-                    if (isRealUser) {
-                      setMode("lint");
-                    } else {
-                      window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
-                    }
-                  }}
-                >
-                  <div className="text-left">
-                    <div className="font-bold">Email copy refinement</div>
-                    <div className="text-gray-500 text-[8px] mt-1">Check if your copy triggers spam filters.</div>
-                  </div>
-                  <span>→</span>
-                </Button>
-
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-between py-6 text-[10px]"
-                  onClick={() => {
-                    setShowOnboarding(false);
-                    setMode("diagnose");
-                  }}
-                >
-                  <div className="text-left">
-                    <div className="font-bold">Diagnose my email</div>
-                    <div className="text-gray-500 text-[8px] mt-1">Check SPF, DKIM, and DMARC alignment.</div>
-                  </div>
-                  <span>→</span>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Main Hero & Action Section */}
-        {mode === "diagnose" && stage === "intro" && (
-          <div className="w-full mb-24 flex flex-col items-center">
-            {/* Massive Hero Section */}
-            <div className="text-center mb-16 space-y-6">
-              <h1 className="text-5xl md:text-7xl font-bold uppercase leading-tight tracking-tighter text-primary drop-shadow-[0_0_20px_rgba(21,128,61,0.5)]">
-                Why are your emails<br/>landing in <span className="text-red-500 drop-shadow-[0_0_20px_rgba(255,0,0,0.8)]">SPAM</span>?
-              </h1>
-              <p className="text-2xl text-primary/80 max-w-2xl mx-auto leading-relaxed">
-                Enter your sending email address. We'll run a live scan of your authentication records, then hand you a prioritized fix list to beat the spam filters.
-              </p>
-            </div>
-            
-            {/* Sleek Toggle Tabs */}
-            <div className="flex gap-4 w-full max-w-2xl mx-auto mb-8 p-2 bg-card border-4 border-primary shadow-[0_0_15px_rgba(21,128,61,0.2)]">
-              <button 
-                className="flex-1 py-4 text-2xl font-bold transition-all bg-primary text-black"
-                onClick={() => setMode("diagnose")}
-              >
-                DMARC CHECK
-              </button>
-              <button 
-                className="flex-1 py-4 text-2xl font-bold transition-all bg-transparent text-primary hover:bg-primary/10"
-                onClick={() => setMode("lint")}
-              >
-                SPAM FILTER CHECK
-              </button>
-            </div>
-
-            {/* Massive Domain Input */}
-            <div className="w-full max-w-2xl mx-auto mb-16 relative">
-              <div className="flex flex-col sm:flex-row gap-0 border-4 border-primary shadow-[8px_8px_0_0_#15803d] focus-within:shadow-[4px_4px_0_0_#15803d] focus-within:translate-x-[4px] focus-within:translate-y-[4px] transition-all bg-black">
-                <input
-                  type="text"
-                  placeholder="USER@DOMAIN.COM"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && runScan()}
-                  className="flex-1 bg-transparent p-6 text-3xl uppercase text-primary placeholder-primary/40 focus:outline-none"
-                />
-                <button 
-                  onClick={runScan} 
-                  disabled={!domain.trim()} 
-                  className="bg-primary text-black px-10 text-2xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                >
-                  SCAN
-                </button>
-              </div>
-              <p className="text-lg text-primary/50 mt-6 text-center">
-                We only read public DNS records. Nothing is sent on your behalf.
-              </p>
-              {error && <div className="text-red-500 text-xl mt-4 text-center border-2 border-red-500 p-2 bg-red-950/30">{error}</div>}
-            </div>
-
-            {/* Premium Animation Section */}
-            <div className="w-full mt-8">
-              <GameAnimation />
-            </div>
-          </div>
-        )}
-
-        {mode === "diagnose" && stage === "scanning" && (
-          <Card className="w-full max-w-2xl mx-auto mt-16 p-8 text-center bg-card border-primary">
-            <h2 className="text-2xl mb-4 animate-pulse text-primary">SCANNING {domain.includes("@") ? domain.split("@")[1] : domain}...</h2>
-            <p className="text-xl text-primary/70 mb-8">Resolving MX, SPF, DKIM and DMARC records.</p>
-            
-            <div className="bg-black border-4 border-primary p-6 relative shadow-inner">
-               <div className="text-xl text-primary mb-2 font-bold">DELIVERABILITY FACT</div>
-               <div className="text-xl leading-loose text-primary">{EMAIL_FACTS[factIndex]}</div>
-            </div>
-          </Card>
-        )}
-
-        {mode === "diagnose" && stage === "scan" && scan && (
-          <div className="w-full max-w-2xl mx-auto space-y-8">
-            <h1 className="text-2xl font-bold uppercase">
-              SCAN RESULTS: {scan.domain}
+    <PixelLayout>
+      {stage === "intro" && (
+        <>
+          {/* HERO */}
+          <section className="px-4 py-16 md:py-24 max-w-6xl mx-auto text-center">
+            <PixelBadge tone="hazard" className="mb-6">★ NOW PLAYING ★</PixelBadge>
+            <h1 className="font-pixel text-2xl sm:text-4xl md:text-5xl leading-tight mb-6">
+              STOP LETTING YOUR<br />
+              <span className="text-hazard text-pixel-shadow">EMAILS DIE</span>
+              <span className="animate-blink"> _</span>
             </h1>
-            
-            <div className="flex items-center gap-6 bg-black border-4 border-primary p-6 shadow-[4px_4px_0_0_#15803d]">
-              <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-4xl font-bold ${scoreColorClass(scan.techScore)}`}>
+            <p className="font-mono-pixel text-xl md:text-2xl max-w-2xl mx-auto mb-10 text-muted-foreground">
+              Free, lifetime email deliverability audits, SPF/DKIM/DMARC fixes, and inbox monitoring.
+              Defeat the spam ogre. Land in the inbox.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
+              <PixelButton
+                variant={mode === "dmarc" ? "primary" : "ghost"}
+                size="lg"
+                onClick={() => setMode("dmarc")}
+              >
+                ► DMARC CHECK
+              </PixelButton>
+              <PixelButton
+                variant={mode === "spam" ? "accent" : "ghost"}
+                size="lg"
+                onClick={() => setMode("spam")}
+              >
+                ► SPAM CHECK
+              </PixelButton>
+            </div>
+            <EmailCheckPanel mode={mode} onScan={runScan} isScanning={false} />
+            {error && <div className="text-hazard text-xl mt-4 font-mono-pixel">{error}</div>}
+          </section>
+
+          {/* GAME */}
+          <section className="px-4 max-w-6xl mx-auto">
+            <div className="text-center mb-6">
+              <h2 className="font-pixel text-base md:text-xl mb-2">YOUR EMAILS VS. THE SPAM OGRES</h2>
+              <p className="font-mono-pixel text-lg text-muted-foreground">Tap or press SPACE to help the ogre deliver. This is what your campaigns face every day.</p>
+            </div>
+            <OgreEmailGame />
+          </section>
+
+          {/* FEATURES */}
+          <section className="px-4 py-20 max-w-6xl mx-auto">
+            <h2 className="font-pixel text-xl md:text-2xl text-center mb-12">★ WHAT THIS APP DOES ★</h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              <PixelCard tone="green">
+                <PixelBadge tone="paper" className="mb-3">01</PixelBadge>
+                <h3 className="font-pixel text-base mb-3">DIAGNOSE</h3>
+                <p className="font-mono-pixel text-lg">We scan your domain — SPF, DKIM, DMARC, blacklists, sender reputation — and tell you exactly why Gmail thinks you're spam.</p>
+              </PixelCard>
+              <PixelCard tone="gold">
+                <PixelBadge tone="paper" className="mb-3">02</PixelBadge>
+                <h3 className="font-pixel text-base mb-3">FIX</h3>
+                <p className="font-mono-pixel text-lg">Copy-paste DNS records, plain-English warm-up plans, list-hygiene scripts. No consultant fees.</p>
+              </PixelCard>
+              <PixelCard tone="sky">
+                <PixelBadge tone="paper" className="mb-3">03</PixelBadge>
+                <h3 className="font-pixel text-base mb-3">MONITOR</h3>
+                <p className="font-mono-pixel text-lg">We watch your reputation 24/7 and ping you the moment a blacklist or seedbox flags your domain.</p>
+              </PixelCard>
+            </div>
+          </section>
+
+          {/* WHO IT'S FOR */}
+          <section className="bg-ink text-paper py-20 px-4 border-y-4 border-ink">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="font-pixel text-xl md:text-2xl text-center mb-12 text-gold">★ WHO IT'S FOR ★</h2>
+              <div className="grid md:grid-cols-3 gap-6">
+                {[
+                  { who: "FOUNDERS", desc: "Cold outreach landing in spam? Fix it before you send another 1000 emails into the void." },
+                  { who: "MARKETERS", desc: "Drip campaigns going to Promotions? We'll show you why and what to change today." },
+                  { who: "NEWSLETTERS", desc: "Open rates tanking? It's not your subject lines. It's deliverability." },
+                ].map((p) => (
+                  <div key={p.who} className="bg-paper text-ink pixel-border p-6">
+                    <div className="font-pixel text-sm text-hazard mb-3">{p.who}</div>
+                    <p className="font-mono-pixel text-lg">{p.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* HOW IT WORKS */}
+          <section className="px-4 py-20 max-w-6xl mx-auto">
+            <h2 className="font-pixel text-xl md:text-2xl text-center mb-12">★ HOW IT WORKS ★</h2>
+            <ol className="grid md:grid-cols-4 gap-6">
+              {[
+                "Enter your domain",
+                "We run 40+ deliverability checks",
+                "You get a pixel-clear report",
+                "Apply fixes & ship",
+              ].map((step, i) => (
+                <li key={step} className="pixel-border p-6 bg-card relative">
+                  <div className="absolute -top-4 -left-4 w-12 h-12 bg-hazard text-paper font-pixel text-sm flex items-center justify-center border-4 border-ink">
+                    {i + 1}
+                  </div>
+                  <p className="font-mono-pixel text-lg mt-3">{step}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          {/* PRICING TEASER */}
+          <section className="px-4 py-20 max-w-3xl mx-auto text-center">
+            <PixelCard tone="gold" className="!p-10">
+              <PixelBadge tone="hazard" className="mb-4">★ FREE FOREVER ★</PixelBadge>
+              <h2 className="font-pixel text-2xl md:text-3xl mb-4">LIFETIME FREE</h2>
+              <p className="font-mono-pixel text-xl mb-8">No credit card. No trial. No "starting at". Just free, because spam shouldn't win.</p>
+              <Link href="/pricing"><PixelButton variant="primary" size="lg">See Pricing</PixelButton></Link>
+            </PixelCard>
+          </section>
+
+          {/* FAQ */}
+          <section className="px-4 py-20 max-w-3xl mx-auto">
+            <h2 className="font-pixel text-xl md:text-2xl text-center mb-12">★ FAQ ★</h2>
+            <div className="pixel-border bg-card p-6">
+              <Accordion type="single" collapsible>
+                {[
+                  { q: "Is it really free forever?", a: "Yes. No tiers. No upsells. The founder pays for the servers because deliverability tooling shouldn't cost $300/mo." },
+                  { q: "Do I need to install anything?", a: "Nope. We work with DNS records and your domain. No code, no JavaScript snippet." },
+                  { q: "Will you send emails for me?", a: "No. We make sure your emails — sent through your existing ESP — actually arrive." },
+                  { q: "How fast is the audit?", a: "About 90 seconds. We run 40+ checks in parallel." },
+                  { q: "Do you support all ESPs?", a: "Yes. Mailchimp, Resend, Postmark, Sendgrid, AWS SES, custom SMTP — anything." },
+                ].map((f, i) => (
+                  <AccordionItem key={f.q} value={`item-${i}`} className="border-ink border-b-2 last:border-0">
+                    <AccordionTrigger className="font-pixel text-xs uppercase hover:no-underline py-4">{f.q}</AccordionTrigger>
+                    <AccordionContent className="font-mono-pixel text-lg">{f.a}</AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          </section>
+
+          {/* FINAL CTA */}
+          <section className="px-4 py-20 max-w-4xl mx-auto text-center">
+            <h2 className="font-pixel text-2xl md:text-3xl mb-6">READY PLAYER ONE?</h2>
+            <p className="font-mono-pixel text-xl mb-8 text-muted-foreground">Book a free audit. Get your fixes. Land in the inbox.</p>
+            <Link href="/audit"><PixelButton variant="accent" size="lg">★ START GAME ★</PixelButton></Link>
+          </section>
+        </>
+      )}
+
+      {/* SCANNING & DIAGNOSIS LOGIC UI */}
+      {stage === "scanning" && (
+        <section className="px-4 py-16 max-w-2xl mx-auto">
+          <PixelCard tone="sky" className="text-center">
+            <h2 className="font-pixel text-xl mb-4 animate-blink text-sky">SCANNING {domain}...</h2>
+            <p className="font-mono-pixel text-lg mb-8">Resolving MX, SPF, DKIM and DMARC records.</p>
+            <div className="pixel-border-sm bg-ink p-4 text-left">
+               <div className="font-pixel text-xs text-gold mb-2">★ FACT ★</div>
+               <div className="font-mono-pixel text-lg text-paper">{EMAIL_FACTS[factIndex]}</div>
+            </div>
+          </PixelCard>
+        </section>
+      )}
+
+      {stage === "scan" && scan && (
+        <section className="px-4 py-16 max-w-4xl mx-auto space-y-8">
+          <h1 className="font-pixel text-2xl uppercase">
+            RESULTS: {scan.domain}
+          </h1>
+          
+          <PixelCard tone={scan.techScore >= 80 ? "green" : scan.techScore >= 55 ? "gold" : "hazard"}>
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center font-pixel text-2xl ${scoreColorClass(scan.techScore)}`}>
                 {scan.techScore}
               </div>
-              <div className="flex-1 text-xl leading-loose text-primary/80">
-                Technical (authentication) score from DNS alone. Describe your problem next so we can ask the right questions and write your fix plan.
+              <div className="flex-1 font-mono-pixel text-xl leading-relaxed">
+                Technical authentication score based on DNS. Describe your problem next so we can ask the right questions and write your fix plan.
               </div>
             </div>
+          </PixelCard>
 
-            <div className="space-y-4">
-              {scan.findings.map((f) => (
-                <Card key={f.id} className="relative overflow-visible">
-                  <div className="absolute -top-3 -right-3 z-10">
-                    <Badge variant={f.severity === 'fail' ? 'destructive' : f.severity === 'warn' ? 'secondary' : 'default'} className="text-[10px] py-1">
-                      {f.severity}
-                    </Badge>
-                  </div>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xl text-primary">{f.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-lg leading-loose text-primary/70">{f.detail}</p>
-                    {f.fix && (
-                      <p className="text-lg leading-loose mt-4 border-t-2 border-primary pt-2 text-primary">
-                        <strong className="text-primary font-bold">FIX: </strong> {f.fix}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <div className="flex justify-between mt-8">
-              <Button variant="outline" onClick={reset}>← BACK</Button>
-              <Button onClick={startProblemStep}>CONTINUE →</Button>
-            </div>
+          <div className="space-y-6">
+            {scan.findings.map((f) => (
+              <PixelCard key={f.id} tone={f.severity === 'fail' ? 'hazard' : f.severity === 'warn' ? 'gold' : 'green'}>
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="font-pixel text-base">{f.title}</h3>
+                  <PixelBadge tone={f.severity === 'fail' ? 'hazard' : f.severity === 'warn' ? 'gold' : 'green'} className="text-[10px]">
+                    {f.severity.toUpperCase()}
+                  </PixelBadge>
+                </div>
+                <p className="font-mono-pixel text-lg leading-relaxed">{f.detail}</p>
+                {f.fix && (
+                  <p className="font-mono-pixel text-lg mt-4 pt-4 border-t-2 border-ink border-dashed">
+                    <strong className="text-hazard">FIX: </strong> {f.fix}
+                  </p>
+                )}
+              </PixelCard>
+            ))}
           </div>
-        )}
 
-        {mode === "diagnose" && stage === "problem" && (
-          <div className="w-full max-w-2xl mx-auto space-y-8">
-            <h1 className="text-3xl font-bold text-primary">WHAT'S THE PROBLEM?</h1>
-            <p className="text-xl text-primary/70 leading-loose">
-              Describe the deliverability issue you're experiencing — or leave blank if you just want a general health check.
-            </p>
-            
-            <Card className="p-6 bg-card border-primary">
-              <textarea
-                rows={5}
-                placeholder="E.g. My open rates dropped from 40% to 2%..."
-                value={problemStatement}
-                onChange={(e) => setProblemStatement(e.target.value)}
-                className="w-full bg-black border-4 border-primary p-4 text-xl leading-loose text-primary focus:outline-none focus:bg-black/80 resize-y placeholder-primary/50"
-              />
-              <div className="flex justify-between mt-6">
-                <Button variant="outline" onClick={() => setStage("scan")}>← BACK</Button>
-                <Button onClick={runTriage}>CONTINUE →</Button>
-              </div>
-            </Card>
-            {error && <div className="text-red-500 text-xl mt-4">{error}</div>}
+          <div className="flex justify-between mt-8">
+            <PixelButton variant="ghost" onClick={reset}>← BACK</PixelButton>
+            <PixelButton variant="primary" onClick={startProblemStep}>CONTINUE ►</PixelButton>
           </div>
-        )}
+        </section>
+      )}
 
-        {mode === "diagnose" && (stage === "triaging" || stage === "generating") && (
-          <Card className="w-full max-w-2xl mx-auto mt-16 p-8 text-center bg-card border-primary">
-            <h2 className="text-2xl mb-4 animate-pulse text-primary">
+      {stage === "problem" && (
+        <section className="px-4 py-16 max-w-2xl mx-auto space-y-8">
+          <h1 className="font-pixel text-2xl text-primary">WHAT'S THE PROBLEM?</h1>
+          <p className="font-mono-pixel text-xl leading-relaxed text-muted-foreground">
+            Describe the deliverability issue you're experiencing — or leave blank if you just want a general health check.
+          </p>
+          
+          <PixelCard>
+            <textarea
+              rows={5}
+              placeholder="E.g. My open rates dropped from 40% to 2%..."
+              value={problemStatement}
+              onChange={(e) => setProblemStatement(e.target.value)}
+              className="w-full bg-paper pixel-border-sm p-4 font-mono-pixel text-xl focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform placeholder-ink/50"
+            />
+            <div className="flex justify-between mt-6">
+              <PixelButton variant="ghost" onClick={() => setStage("scan")}>← BACK</PixelButton>
+              <PixelButton variant="accent" onClick={runTriage}>CONTINUE ►</PixelButton>
+            </div>
+          </PixelCard>
+          {error && <div className="text-hazard font-mono-pixel text-xl mt-4">{error}</div>}
+        </section>
+      )}
+
+      {(stage === "triaging" || stage === "generating") && (
+        <section className="px-4 py-16 max-w-2xl mx-auto">
+          <PixelCard tone="sky" className="text-center">
+            <h2 className="font-pixel text-xl mb-4 animate-blink text-sky">
               {stage === "triaging" ? "ANALYZING..." : "WRITING FIX PLAN..."}
             </h2>
-            <div className="bg-black border-4 border-primary p-6 relative shadow-inner mt-8">
-               <div className="text-xl text-primary mb-2 font-bold">DELIVERABILITY FACT</div>
-               <div className="text-xl leading-loose text-primary/80">{EMAIL_FACTS[factIndex]}</div>
+            <div className="pixel-border-sm bg-ink p-4 text-left mt-8">
+               <div className="font-pixel text-xs text-gold mb-2">★ FACT ★</div>
+               <div className="font-mono-pixel text-lg text-paper">{EMAIL_FACTS[factIndex]}</div>
             </div>
-          </Card>
-        )}
+          </PixelCard>
+        </section>
+      )}
 
-        {mode === "diagnose" && stage === "questions" && current && (
-          <div className="w-full max-w-2xl mx-auto space-y-8">
-            <div className="h-4 bg-black border-4 border-primary w-full overflow-hidden">
-              <div className="h-full bg-primary" style={{ width: `${((qIndex + 1) / triageSlots.length) * 100}%` }} />
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold mb-2 leading-relaxed text-primary">{current.text}</h2>
-              {current.help && <p className="text-xl text-primary/70 leading-loose">{current.help}</p>}
-            </div>
-
-            <Card className="p-6 bg-card border-primary">
-              <textarea
-                rows={4}
-                placeholder="TYPE YOUR ANSWER..."
-                value={typedAnswer}
-                onChange={(e) => handleTextareaChange(e.target.value)}
-                className="w-full bg-black border-4 border-primary p-4 text-xl leading-loose text-primary focus:outline-none focus:bg-black/80 placeholder-primary/50"
-              />
-              
-              {current.options && current.options.length > 0 && (
-                <div className="mt-6">
-                  <div className="text-[8px] text-gray-500 font-bold mb-4">SUGGESTIONS:</div>
-                  <div className="flex flex-wrap gap-2">
-                    {current.options.map((opt) => (
-                      <Button
-                        key={opt.value}
-                        variant={typedAnswer === opt.label ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleTextareaChange(opt.label)}
-                        className="text-[8px]"
-                      >
-                        {opt.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <div className="flex justify-between items-center mt-8">
-              <Button variant="outline" onClick={prevQuestion}>← BACK</Button>
-              <span className="text-[8px] text-gray-400">Q {qIndex + 1} OF {triageSlots.length}</span>
-              <Button onClick={nextQuestion} disabled={!isAnswered}>
-                {qIndex + 1 >= triageSlots.length ? "FINISH" : "NEXT →"}
-              </Button>
-            </div>
+      {stage === "questions" && current && (
+        <section className="px-4 py-16 max-w-2xl mx-auto space-y-8">
+          <div className="h-4 bg-paper pixel-border-sm w-full overflow-hidden">
+            <div className="h-full bg-accent transition-all duration-300" style={{ width: `${((qIndex + 1) / triageSlots.length) * 100}%` }} />
           </div>
-        )}
 
-        {mode === "diagnose" && stage === "report" && report && report.status === "inconclusive" && report.followUpQuestions && (
-          <div className="w-full max-w-2xl mx-auto space-y-8">
-            <h1 className="text-2xl font-bold">NEED MORE DATA</h1>
-            <p className="text-[10px] text-gray-600 leading-loose">
-              We need a few more details to generate your custom action plan.
-            </p>
-            <Card className="p-6 bg-white space-y-6">
+          <div>
+            <h2 className="font-pixel text-xl mb-4 leading-relaxed">{current.text}</h2>
+            {current.help && <p className="font-mono-pixel text-lg text-muted-foreground">{current.help}</p>}
+          </div>
+
+          <PixelCard>
+            <textarea
+              rows={4}
+              placeholder="TYPE YOUR ANSWER..."
+              value={typedAnswer}
+              onChange={(e) => handleTextareaChange(e.target.value)}
+              className="w-full bg-paper pixel-border-sm p-4 font-mono-pixel text-xl focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform placeholder-ink/50"
+            />
+            
+            {current.options && current.options.length > 0 && (
+              <div className="mt-6">
+                <div className="font-pixel text-[10px] text-muted-foreground mb-4">SUGGESTIONS:</div>
+                <div className="flex flex-wrap gap-2">
+                  {current.options.map((opt) => (
+                    <PixelButton
+                      key={opt.value}
+                      variant={typedAnswer === opt.label ? "primary" : "ghost"}
+                      size="sm"
+                      onClick={() => handleTextareaChange(opt.label)}
+                    >
+                      {opt.label}
+                    </PixelButton>
+                  ))}
+                </div>
+              </div>
+            )}
+          </PixelCard>
+
+          <div className="flex justify-between items-center mt-8">
+            <PixelButton variant="ghost" onClick={prevQuestion}>← BACK</PixelButton>
+            <span className="font-pixel text-[10px] text-muted-foreground">Q {qIndex + 1} OF {triageSlots.length}</span>
+            <PixelButton variant="accent" onClick={nextQuestion} disabled={!isAnswered}>
+              {qIndex + 1 >= triageSlots.length ? "FINISH" : "NEXT ►"}
+            </PixelButton>
+          </div>
+        </section>
+      )}
+
+      {stage === "report" && report && report.status === "inconclusive" && report.followUpQuestions && (
+        <section className="px-4 py-16 max-w-2xl mx-auto space-y-8">
+          <h1 className="font-pixel text-2xl text-hazard">NEED MORE DATA</h1>
+          <p className="font-mono-pixel text-lg text-muted-foreground">
+            We need a few more details to generate your custom action plan.
+          </p>
+          <PixelCard>
+            <div className="space-y-6">
               {report.followUpQuestions.map((q) => (
                 <div key={q.id}>
-                  <div className="font-bold text-sm mb-2">{q.text}</div>
-                  {q.help && <div className="text-[8px] text-gray-500 mb-4">{q.help}</div>}
+                  <div className="font-pixel text-sm mb-2">{q.text}</div>
+                  {q.help && <div className="font-mono-pixel text-sm text-muted-foreground mb-4">{q.help}</div>}
                   <textarea
                     rows={3}
                     placeholder="TYPE ANSWER..."
@@ -523,66 +539,62 @@ export default function Home() {
                       const val = e.target.value;
                       setFollowUpAnswers((prev) => ({ ...prev, [q.id]: val }));
                     }}
-                    className="w-full bg-gray-50 border-4 border-black p-4 text-[10px] leading-loose focus:outline-none focus:bg-white"
+                    className="w-full bg-paper pixel-border-sm p-4 font-mono-pixel text-lg focus:outline-none"
                   />
                 </div>
               ))}
-              <div className="flex justify-between mt-8">
-                <Button variant="outline" onClick={() => { setReport(null); setStage("questions"); }}>← BACK</Button>
-                <Button
-                  disabled={!report.followUpQuestions.every((q) => (followUpAnswers[q.id] || "").trim().length > 0)}
-                  onClick={() => {
-                    const combinedAnswers = { ...answers, ...followUpAnswers };
-                    setAnswers(combinedAnswers);
-                    generateReport(scan!, combinedAnswers);
-                  }}
-                >
-                  SUBMIT
-                </Button>
-              </div>
-            </Card>
-          </div>
-        )}
+            </div>
+            <div className="flex justify-between mt-8">
+              <PixelButton variant="ghost" onClick={() => { setReport(null); setStage("questions"); }}>← BACK</PixelButton>
+              <PixelButton
+                variant="accent"
+                disabled={!report.followUpQuestions.every((q) => (followUpAnswers[q.id] || "").trim().length > 0)}
+                onClick={() => {
+                  const combinedAnswers = { ...answers, ...followUpAnswers };
+                  setAnswers(combinedAnswers);
+                  generateReport(scan!, combinedAnswers);
+                }}
+              >
+                SUBMIT ►
+              </PixelButton>
+            </div>
+          </PixelCard>
+        </section>
+      )}
 
-        {mode === "diagnose" && stage === "report" && report && report.status !== "inconclusive" && (
-          <div className="w-full max-w-3xl mx-auto space-y-8">
-            <h1 className="text-2xl font-bold">REMEDIATION PLAN</h1>
-            
-            <div className="flex items-center gap-6 bg-white border-4 border-black p-6 shadow-[4px_4px_0_0_#000]">
-              <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-bold ${scoreColorClass(report.finalScore)}`}>
+      {stage === "report" && report && report.status !== "inconclusive" && (
+        <section className="px-4 py-16 max-w-3xl mx-auto space-y-8">
+          <h1 className="font-pixel text-2xl uppercase">REMEDIATION PLAN</h1>
+          
+          <PixelCard tone={report.finalScore >= 80 ? "green" : report.finalScore >= 55 ? "gold" : "hazard"}>
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center font-pixel text-2xl ${scoreColorClass(report.finalScore)}`}>
                 {report.finalScore}
               </div>
-              <div className="flex-1 text-[10px] leading-loose text-gray-600">
+              <div className="flex-1 font-mono-pixel text-xl leading-relaxed">
                 Overall deliverability score (technical + behavioral).
               </div>
             </div>
+          </PixelCard>
 
-            <Card className="p-8 bg-black border-primary MarkdownContent text-xl leading-loose text-primary">
-               <style dangerouslySetInnerHTML={{__html:`
-                 .MarkdownContent h1, .MarkdownContent h2, .MarkdownContent h3 { font-family: 'VT323', monospace; margin-top: 2rem; margin-bottom: 1rem; line-height: 1.5; color: #16a34a; }
-                 .MarkdownContent p, .MarkdownContent li { font-family: 'VT323', monospace; font-size: 1.25rem; line-height: 2; margin-bottom: 1rem; color: #22c55e; }
-                 .MarkdownContent code { background: #000; padding: 4px; border: 2px solid #16a34a; font-family: monospace; font-size: 1.125rem; color: #16a34a; }
-                 .MarkdownContent pre { background: #000; color: #16a34a; padding: 1rem; border: 4px solid #16a34a; overflow-x: auto; margin-bottom: 1rem; }
-                 .MarkdownContent pre code { background: none; border: none; color: #16a34a; }
-               `}} />
-              <Markdown source={report.markdown || ""} />
-            </Card>
+          <PixelCard className="MarkdownContent font-mono-pixel text-lg leading-loose">
+            <style dangerouslySetInnerHTML={{__html:`
+              .MarkdownContent h1, .MarkdownContent h2, .MarkdownContent h3 { font-family: 'Press Start 2P', system-ui, monospace; margin-top: 2rem; margin-bottom: 1rem; line-height: 1.5; color: var(--color-ink); font-size: 1.2rem;}
+              .MarkdownContent p, .MarkdownContent li { font-family: 'VT323', ui-monospace, monospace; font-size: 1.25rem; line-height: 2; margin-bottom: 1rem; color: var(--color-ink); }
+              .MarkdownContent code { background: var(--color-ink); padding: 4px; border: 2px solid var(--color-crt-green); font-family: monospace; font-size: 1.125rem; color: var(--color-crt-green); }
+              .MarkdownContent pre { background: var(--color-ink); color: var(--color-crt-green); padding: 1rem; border: 4px solid var(--color-ink); overflow-x: auto; margin-bottom: 1rem; }
+              .MarkdownContent pre code { background: none; border: none; color: var(--color-crt-green); }
+            `}} />
+            <Markdown source={report.markdown || ""} />
+          </PixelCard>
 
-            <div className="flex justify-between mt-8">
-              <Button variant="outline" onClick={reset}>START OVER</Button>
-              <Button onClick={() => window.print()}>PRINT PDF</Button>
-            </div>
+          <div className="flex justify-between mt-8">
+            <PixelButton variant="ghost" onClick={reset}>START OVER</PixelButton>
+            <PixelButton variant="primary" onClick={() => window.print()}>PRINT PDF</PixelButton>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* FAQ/Changelog Section at Bottom */}
-        {mode === "diagnose" && stage === "intro" && (
-          <div className="mt-24 w-full">
-            <Team2 />
-          </div>
-        )}
-
-      </main>
-    </div>
+    </PixelLayout>
   );
 }
