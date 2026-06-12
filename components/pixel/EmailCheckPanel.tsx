@@ -10,11 +10,12 @@ interface Props {
   mode: Mode;
   onScan?: (domain: string) => void;
   isScanning?: boolean;
+  isAuthenticated?: boolean;
 }
 
-export function EmailCheckPanel({ mode, onScan, isScanning }: Props) {
+export function EmailCheckPanel({ mode, onScan, isScanning, isAuthenticated }: Props) {
   if (mode === "dmarc") return <DmarcBox onScan={onScan} isScanning={isScanning} />;
-  return <SpamTerminal />;
+  return <SpamTerminal isAuthenticated={isAuthenticated} />;
 }
 
 function DmarcBox({ onScan, isScanning }: { onScan?: (domain: string) => void; isScanning?: boolean }) {
@@ -57,7 +58,7 @@ function DmarcBox({ onScan, isScanning }: { onScan?: (domain: string) => void; i
   );
 }
 
-function SpamTerminal() {
+function SpamTerminal({ isAuthenticated }: { isAuthenticated?: boolean }) {
   const [values, setValues] = useState({
     subject: "",
     copy: ""
@@ -189,7 +190,13 @@ function SpamTerminal() {
               ref={subjectRef}
               type="text"
               value={values.subject}
-              onChange={e => setValues(v => ({ ...v, subject: e.target.value }))}
+              onChange={e => {
+                if (!isAuthenticated) {
+                  window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
+                  return;
+                }
+                setValues(v => ({ ...v, subject: e.target.value }));
+              }}
               onScroll={handleSubjectScroll}
               className="relative w-full bg-transparent p-3 font-mono-pixel text-xl text-transparent focus:outline-none"
               style={{ caretColor: 'var(--ink)' }}
@@ -210,7 +217,13 @@ function SpamTerminal() {
             <textarea
               ref={copyRef}
               value={values.copy}
-              onChange={e => setValues(v => ({ ...v, copy: e.target.value }))}
+              onChange={e => {
+                if (!isAuthenticated) {
+                  window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
+                  return;
+                }
+                setValues(v => ({ ...v, copy: e.target.value }));
+              }}
               onScroll={handleCopyScroll}
               className="relative w-full h-full bg-transparent p-3 font-mono-pixel text-xl text-transparent focus:outline-none resize-none"
               style={{ caretColor: 'var(--ink)' }}

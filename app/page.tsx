@@ -108,6 +108,10 @@ export default function Home() {
   }, [user, leadEmail]);
 
   async function runScan(inputEmail: string) {
+    if (!user || user.is_anonymous) {
+      window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
+      return;
+    }
     const inputDomain = inputEmail.includes("@") ? inputEmail.split("@")[1] : inputEmail;
     setDomain(inputDomain);
     setError(null);
@@ -259,45 +263,46 @@ export default function Home() {
               Expert email deliverability audits, SPF/DKIM/DMARC fixes, and inbox monitoring.
               Defeat the spam ogre. Land in the inbox.
             </p>
-            {user && !user.is_anonymous ? (
-              <>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
-                  <PixelButton
-                    variant={mode === "dmarc" ? "primary" : "ghost"}
-                    size="lg"
-                    onClick={() => setMode("dmarc")}
-                  >
-                    ► DMARC CHECK
-                  </PixelButton>
-                  <PixelButton
-                    variant={mode === "spam" ? "accent" : "ghost"}
-                    size="lg"
-                    onClick={() => setMode("spam")}
-                  >
-                    ► SPAM CHECK
-                  </PixelButton>
-                </div>
-
-                <div className="max-w-2xl mx-auto mb-8 text-left">
-                  <label className="font-pixel text-[10px] text-muted-foreground block mb-2 text-center uppercase">What email problem are you facing?</label>
-                  <textarea
-                    rows={3}
-                    placeholder="E.g. My open rates dropped from 40% to 2%..."
-                    value={problemStatement}
-                    onChange={(e) => setProblemStatement(e.target.value)}
-                    className="w-full bg-paper pixel-border-sm p-4 font-mono-pixel text-xl focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform placeholder-ink/50"
-                  />
-                </div>
-
-                <EmailCheckPanel mode={mode} onScan={runScan} isScanning={false} />
-              </>
-            ) : (
-              <div className="flex justify-center mt-10 mb-16">
-                <PixelButton size="xl" variant="primary" onClick={handleDiagnoseClick}>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
+              <PixelButton
+                variant={mode === "dmarc" ? "primary" : "ghost"}
+                size="lg"
+                onClick={() => setMode("dmarc")}
+              >
+                ► DMARC CHECK
+              </PixelButton>
+              <PixelButton
+                variant={mode === "spam" ? "accent" : "ghost"}
+                size="lg"
+                onClick={() => setMode("spam")}
+              >
+                ► SPAM CHECK
+              </PixelButton>
+              {(!user || user.is_anonymous) && (
+                <PixelButton size="lg" variant="secondary" onClick={handleDiagnoseClick}>
                   ★ DIAGNOSE MY EMAIL ★
                 </PixelButton>
-              </div>
-            )}
+              )}
+            </div>
+
+            <div className="max-w-2xl mx-auto mb-8 text-left">
+              <label className="font-pixel text-[10px] text-muted-foreground block mb-2 text-center uppercase">What email problem are you facing?</label>
+              <textarea
+                rows={3}
+                placeholder="E.g. My open rates dropped from 40% to 2%..."
+                value={problemStatement}
+                onChange={(e) => {
+                  if (!user || user.is_anonymous) {
+                    window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
+                    return;
+                  }
+                  setProblemStatement(e.target.value);
+                }}
+                className="w-full bg-paper pixel-border-sm p-4 font-mono-pixel text-xl focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform placeholder-ink/50"
+              />
+            </div>
+
+            <EmailCheckPanel mode={mode} onScan={runScan} isScanning={false} isAuthenticated={user && !user.is_anonymous} />
             {error && <div className="text-hazard text-xl mt-4 font-mono-pixel">{error}</div>}
           </section>
 
