@@ -322,17 +322,26 @@ export default function Home() {
               <PixelCard tone="green">
                 <PixelBadge tone="paper" className="mb-3">01</PixelBadge>
                 <h3 className="font-pixel text-base mb-3">DIAGNOSE</h3>
-                <p className="font-mono-pixel text-lg">We scan your domain — SPF, DKIM, DMARC, blacklists, sender reputation — and tell you exactly why Gmail thinks you're spam.</p>
+                <ul className="font-mono-pixel text-lg space-y-2 list-none">
+                  <li>► Scan your SPF, DKIM &amp; DMARC records — we flag anything missing or broken.</li>
+                  <li>► Tell us your problem and current practices — we ask the right questions to understand your setup.</li>
+                  <li>► Paste your email copy — we scan it for spam-trigger words that could tank deliverability.</li>
+                </ul>
               </PixelCard>
               <PixelCard tone="gold">
                 <PixelBadge tone="paper" className="mb-3">02</PixelBadge>
                 <h3 className="font-pixel text-base mb-3">FIX</h3>
-                <p className="font-mono-pixel text-lg">Copy-paste DNS records, plain-English warm-up plans, list-hygiene scripts. No consultant fees.</p>
+                <ul className="font-mono-pixel text-lg space-y-2 list-none">
+                  <li>► See which records are connected and get clear warnings for anything missing — with SpamAssassin-grade checks for extra peace of mind.</li>
+                  <li>► Get a personalised DIY fix plan built around your exact problem — clear direction, no jargon. For deeper issues, book a free audit.</li>
+                  <li>► Highlighted spam words, explained. We can even rewrite the flagged copy for you.</li>
+                </ul>
               </PixelCard>
               <PixelCard tone="sky">
                 <PixelBadge tone="paper" className="mb-3">03</PixelBadge>
-                <h3 className="font-pixel text-base mb-3">MONITOR</h3>
-                <p className="font-mono-pixel text-lg">We watch your reputation 24/7 and ping you the moment a blacklist or seedbox flags your domain.</p>
+                <h3 className="font-pixel text-base mb-3">AUDIT</h3>
+                <p className="font-mono-pixel text-lg mb-3">This app gives you solid DIY solutions and the basics of campaign design. When you need in-depth consultation — domain reputation, IP reputation, agency IP, warm-up strategy — book a 1-on-1 session.</p>
+                <p className="font-mono-pixel text-lg text-sky font-bold">Free for now. Book a call below.</p>
               </PixelCard>
             </div>
           </section>
@@ -341,17 +350,26 @@ export default function Home() {
           <section className="bg-ink text-paper py-20 px-4 border-y-4 border-ink">
             <div className="max-w-6xl mx-auto">
               <h2 className="font-pixel text-xl md:text-2xl text-center mb-12 text-gold">★ WHO IT'S FOR ★</h2>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                 {[
-                  { who: "FOUNDERS", desc: "Cold outreach landing in spam? Fix it before you send another 1000 emails into the void." },
-                  { who: "MARKETERS", desc: "Drip campaigns going to Promotions? We'll show you why and what to change today." },
-                  { who: "NEWSLETTERS", desc: "Open rates tanking? It's not your subject lines. It's deliverability." },
+                  { who: "FOUNDERS", desc: "Want DIY solutions without hiring a consultant? Put your problem in here and get a clear fix plan." },
+                  { who: "MARKETERS STARTING OUT", desc: "Still learning the ropes? We break down deliverability in plain English so you actually understand what to change." },
+                  { who: "CONFUSED BY STATS", desc: "Seeing unexplained drops in opens or clicks? We dig into the real cause — not just the symptoms." },
+                  { who: "GHL BUSINESS OWNERS", desc: "Running a business on GoHighLevel? We help you get your sending domain, warm-up, and campaigns dialled in." },
+                  { who: "GHL AGENCY OWNERS", desc: "Managing client subaccounts? Get clarity on sending domains, agency IPs, and reputation — fast." },
+                  { who: "LOST IN REPUTATION LAND", desc: "Domain reputation. IP reputation. Agency IP. It's confusing. Take a breath — put all your problems in here and we'll guide you through it." },
                 ].map((p) => (
                   <div key={p.who} className="bg-paper text-ink pixel-border p-6">
                     <div className="font-pixel text-sm text-hazard mb-3">{p.who}</div>
                     <p className="font-mono-pixel text-lg">{p.desc}</p>
                   </div>
                 ))}
+              </div>
+              <div className="text-center">
+                <p className="font-mono-pixel text-lg text-gold max-w-2xl mx-auto">
+                  This tool is primarily built for GHL users — but we are constantly working to help as many people as we can.
+                </p>
+                <p className="font-pixel text-sm text-paper/70 mt-3">Let&apos;s make emails great again.</p>
               </div>
             </div>
           </section>
