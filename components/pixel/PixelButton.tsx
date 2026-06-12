@@ -6,7 +6,7 @@ type Variant = "primary" | "secondary" | "danger" | "ghost" | "accent";
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
 const variantClasses: Record<Variant, string> = {
@@ -21,6 +21,7 @@ const sizeClasses = {
   sm: "px-3 py-2 text-[10px]",
   md: "px-5 py-3 text-xs",
   lg: "px-7 py-4 text-sm",
+  xl: "px-10 py-5 text-base md:text-lg",
 };
 
 export const PixelButton = forwardRef<HTMLButtonElement, Props>(
