@@ -13,7 +13,7 @@ export function PixelFooter() {
           <div className="font-pixel text-[10px] uppercase mb-3 text-gold">Product</div>
           <ul className="space-y-2">
             <li><Link href="/pricing" className="hover:text-gold">Pricing</Link></li>
-            <li><Link href="https://calendly.com/hi-hisubhadeep/30min" target="_blank" className="hover:text-gold">Book Audit</Link></li>
+            <li><Link href="https://calendly.com/psycicx1ve/30min" target="_blank" className="hover:text-gold">Book Audit</Link></li>
             <li><Link href="/best-practices" className="hover:text-gold">Best Practices</Link></li>
           </ul>
         </div>
