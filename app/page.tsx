@@ -246,7 +246,7 @@ export default function Home() {
               <span className="animate-blink"> _</span>
             </h1>
             <p className="font-mono-pixel text-xl md:text-2xl max-w-2xl mx-auto mb-10 text-muted-foreground">
-              Free, lifetime email deliverability audits, SPF/DKIM/DMARC fixes, and inbox monitoring.
+              Expert email deliverability audits, SPF/DKIM/DMARC fixes, and inbox monitoring.
               Defeat the spam ogre. Land in the inbox.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
@@ -373,7 +373,7 @@ export default function Home() {
           {/* FINAL CTA */}
           <section className="px-4 py-20 max-w-4xl mx-auto text-center">
             <h2 className="font-pixel text-2xl md:text-3xl mb-6">READY PLAYER ONE?</h2>
-            <p className="font-mono-pixel text-xl mb-8 text-muted-foreground">Book a free audit. Get your fixes. Land in the inbox.</p>
+            <p className="font-mono-pixel text-xl mb-8 text-muted-foreground">Book an expert audit. Get your fixes. Land in the inbox.</p>
             <Link href="/audit"><PixelButton variant="accent" size="lg">★ START GAME ★</PixelButton></Link>
           </section>
         </>

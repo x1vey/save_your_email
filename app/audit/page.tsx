@@ -20,10 +20,10 @@ export default function Page() {
   return (
     <PixelLayout>
       <section className="px-4 py-16 max-w-3xl mx-auto">
-        <PixelBadge tone="hazard" className="mb-4">★ INSERT COIN: $0 ★</PixelBadge>
-        <h1 className="font-pixel text-2xl md:text-4xl mb-4">BOOK FREE AUDIT</h1>
+        <PixelBadge tone="hazard" className="mb-4">★ PREMIUM LEVEL ★</PixelBadge>
+        <h1 className="font-pixel text-2xl md:text-4xl mb-4">BOOK AN EXPERT AUDIT</h1>
         <p className="font-mono-pixel text-xl text-muted-foreground mb-10">
-          30 minutes. One pixel-clear report. Zero dollars. We'll teach you exactly what's breaking your deliverability.
+          30 minutes. One pixel-clear report. We'll teach you exactly what's breaking your deliverability. (Note: This is a paid, premium service.)
         </p>
 
         {submitted ? (
