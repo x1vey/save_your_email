@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { TRIAGE_SYSTEM_PROMPT, DIAGNOSIS_SYSTEM_PROMPT } from "./prompt";
+import { TRIAGE_SYSTEM_PROMPT, DIAGNOSIS_SYSTEM_PROMPT, SPAM_REWRITE_SYSTEM_PROMPT } from "./prompt";
 
 // Both OpenAI and Groq speak the same chat-completions API, so a single client
 // with a swappable baseURL/model covers both. Provider is chosen by env:
@@ -158,4 +158,39 @@ export function buildDiagnosisUserMessage(
     null,
     2
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALL 3 — SPAM REWRITE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function callSpamRewrite(
+  config: LlmConfig,
+  flaggedPhrase: string,
+  rule: string,
+  surroundingContext: string
+): Promise<string[]> {
+  const response = await config.client.chat.completions.create({
+    model: config.model,
+    temperature: 0.6,
+    max_tokens: 256,
+    messages: [
+      { role: "system", content: SPAM_REWRITE_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: JSON.stringify({ flaggedPhrase, rule, surroundingContext }),
+      },
+    ],
+  });
+
+  const raw = response.choices[0]?.message?.content ?? "";
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    const obj = JSON.parse(match ? match[0] : raw);
+    return Array.isArray(obj.suggestions)
+      ? obj.suggestions.filter((s: unknown): s is string => typeof s === "string")
+      : [];
+  } catch {
+    return [];
+  }
 }

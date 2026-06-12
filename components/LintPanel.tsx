@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { LintResult } from "@/lib/spam-lint";
+import type { LintResult, LintHit } from "@/lib/spam-lint";
 
 const SAMPLE_SUBJECT = "ACT NOW!! 100% GUARANTEED — Dear Winner, claim your million dollars";
 const SAMPLE_BODY =
@@ -15,6 +15,85 @@ function sevColor(s: string) {
   return s === "critical" || s === "high" ? "#f87171" : s === "medium" ? "#fbbf24" : "#8a97a8";
 }
 
+function RewriteSection({
+  hit,
+  haystack,
+  onReplace,
+}: {
+  hit: LintHit;
+  haystack: string;
+  onReplace: (start: number, end: number, suggestion: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[] | null>(null);
+
+  if (hit.startIndex === undefined || hit.endIndex === undefined || !hit.phrase) return null;
+
+  async function fetchRewrite() {
+    setLoading(true);
+    try {
+      // Find sentence context by expanding to nearest periods
+      let ctxStart = hit.startIndex || 0;
+      while (ctxStart > 0 && !/[.!?\n]/.test(haystack[ctxStart - 1])) ctxStart--;
+      let ctxEnd = hit.endIndex || 0;
+      while (ctxEnd < haystack.length && !/[.!?\n]/.test(haystack[ctxEnd])) ctxEnd++;
+      
+      const surroundingContext = haystack.substring(ctxStart, ctxEnd).trim();
+
+      const res = await fetch("/api/spamcheck/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          flaggedPhrase: hit.phrase,
+          rule: hit.rule,
+          surroundingContext,
+        }),
+      });
+      const data = await res.json();
+      setSuggestions(data.suggestions || []);
+    } catch (e) {
+      console.error(e);
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!suggestions && !loading) {
+    return (
+      <button className="ghost" style={{ marginTop: 8, fontSize: "0.85em" }} onClick={fetchRewrite}>
+        ✨ Suggest alternatives
+      </button>
+    );
+  }
+
+  if (loading) {
+    return <div style={{ marginTop: 8, fontSize: "0.85em", color: "var(--muted)" }}>✨ Generating alternatives...</div>;
+  }
+
+  if (suggestions && suggestions.length > 0) {
+    return (
+      <div style={{ marginTop: 12 }}>
+        <strong style={{ fontSize: "0.85em", color: "var(--text)" }}>AI Suggestions (click to apply):</strong>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              className="ghost"
+              style={{ fontSize: "0.85em", background: "rgba(255,255,255,0.05)" }}
+              onClick={() => onReplace(hit.startIndex!, hit.endIndex!, s)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function LintPanel() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -22,14 +101,14 @@ export default function LintPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function run() {
+  async function runWithData(subj: string, bdy: string) {
     setError(null);
     setLoading(true);
     try {
       const res = await fetch("/api/lint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, body }),
+        body: JSON.stringify({ subject: subj, body: bdy }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lint failed");
@@ -39,6 +118,32 @@ export default function LintPanel() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function run() {
+    await runWithData(subject, body);
+  }
+
+  function handleReplace(start: number, end: number, suggestion: string) {
+    const subjLen = subject.length;
+    let newSubject = subject;
+    let newBody = body;
+
+    if (start <= subjLen) {
+      // It's in the subject
+      newSubject = subject.substring(0, start) + suggestion + subject.substring(end);
+    } else {
+      // It's in the body
+      const bodyStart = start - subjLen - 1; // -1 for the \n delimiter
+      const bodyEnd = end - subjLen - 1;
+      newBody = body.substring(0, bodyStart) + suggestion + body.substring(bodyEnd);
+    }
+
+    setSubject(newSubject);
+    setBody(newBody);
+    
+    // Automatically re-run lint
+    runWithData(newSubject, newBody);
   }
 
   // Meter fill: score relative to the 5.0 spam threshold (capped at 100%).
@@ -117,8 +222,8 @@ export default function LintPanel() {
               <p>Nothing in this draft tripped the rule set. Still worth a real test via mail-tester.com before a big send.</p>
             </div>
           ) : (
-            result.hits.map((h) => (
-              <div key={h.rule} className="finding" style={{ borderLeftColor: sevColor(h.severity) }}>
+            result.hits.map((h, idx) => (
+              <div key={`${h.rule}-${idx}`} className="finding" style={{ borderLeftColor: sevColor(h.severity) }}>
                 <h4>
                   {h.rule}
                   <span className="badge" style={{ background: "rgba(255,255,255,0.06)", color: sevColor(h.severity) }}>
@@ -129,6 +234,12 @@ export default function LintPanel() {
                 <p style={{ marginTop: 6 }}>
                   <strong style={{ color: "var(--text)" }}>Fix:</strong> {h.advice}
                 </p>
+                
+                <RewriteSection 
+                  hit={h} 
+                  haystack={subject + "\n" + (result.isHtml ? body : body)} 
+                  onReplace={handleReplace} 
+                />
               </div>
             ))
           )}

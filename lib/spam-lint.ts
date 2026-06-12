@@ -12,6 +12,9 @@ export interface LintHit {
   severity: "critical" | "high" | "medium" | "low";
   detail: string;
   advice: string;
+  startIndex?: number;
+  endIndex?: number;
+  phrase?: string;
 }
 
 export interface LintResult {
@@ -76,8 +79,8 @@ export function lintEmail(subjectRaw: string, bodyRaw: string): LintResult {
   const isHtml = /<\s*(html|body|table|div|a|img|p|br|span)\b/i.test(body);
   const text = isHtml ? stripHtml(body) : body;
   const hits: LintHit[] = [];
-  const add = (rule: string, score: number, detail: string, advice: string) =>
-    hits.push({ rule, score, severity: sev(score), detail, advice });
+  const add = (rule: string, score: number, detail: string, advice: string, startIndex?: number, endIndex?: number, phrase?: string) =>
+    hits.push({ rule, score, severity: sev(score), detail, advice, startIndex, endIndex, phrase });
 
   // ---- Subject rules ----
   if (!subject) {
@@ -104,20 +107,42 @@ export function lintEmail(subjectRaw: string, bodyRaw: string): LintResult {
   // ---- Phrase rules (subject + body) ----
   const haystack = `${subject}\n${text}`;
   for (const r of PHRASE_RULES) {
-    if (r.re.test(haystack)) add(r.rule, r.score, `Matched spam phrase rule ${r.rule}.`, r.advice);
+    const globalRe = new RegExp(r.re.source, r.re.flags.includes('g') ? r.re.flags : r.re.flags + 'g');
+    for (const match of haystack.matchAll(globalRe)) {
+      if (match.index !== undefined) {
+        add(r.rule, r.score, `Matched spam phrase rule ${r.rule}.`, r.advice, match.index, match.index + match[0].length, match[0]);
+      }
+    }
   }
 
   // ---- Trigger words (capped) ----
   const lower = haystack.toLowerCase();
-  const matched = TRIGGER_WORDS.filter((w) => lower.includes(w));
-  if (matched.length) {
-    const score = Math.min(1.5, matched.length * 0.3);
-    add(
-      "TRIGGER_WORDS",
-      score,
-      `Marketing/urgency trigger words present: ${matched.slice(0, 8).join(", ")}.`,
-      "Rephrase or remove these; lead with genuine value instead of urgency."
-    );
+  const distinctMatched = new Set<string>();
+  const matchedTriggerHits: { w: string, start: number, end: number }[] = [];
+  for (const w of TRIGGER_WORDS) {
+    let index = lower.indexOf(w);
+    while (index !== -1) {
+      distinctMatched.add(w);
+      matchedTriggerHits.push({ w, start: index, end: index + w.length });
+      index = lower.indexOf(w, index + w.length);
+    }
+  }
+
+  if (matchedTriggerHits.length > 0) {
+    const totalScore = Math.min(1.5, distinctMatched.size * 0.3);
+    const scorePerHit = totalScore / matchedTriggerHits.length;
+    for (const hit of matchedTriggerHits) {
+      const phrase = haystack.substring(hit.start, hit.end);
+      add(
+        "TRIGGER_WORDS",
+        scorePerHit,
+        `Marketing/urgency trigger word present: "${phrase}".`,
+        "Rephrase or remove this; lead with genuine value instead of urgency.",
+        hit.start,
+        hit.end,
+        phrase
+      );
+    }
   }
 
   // ---- Body emphasis ----

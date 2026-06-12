@@ -5,6 +5,7 @@ import type { Answers, Question, ScanResult, ReportResponse, TriageResult } from
 import { QUESTIONS, getSlot } from "@/lib/questions";
 import Markdown from "@/components/Markdown";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 // Import new 8-bit components
 import { PixelLayout } from "@/components/pixel/PixelLayout";
@@ -97,7 +98,10 @@ export default function Home() {
           .eq("id", user.id)
           .then(
             () => console.log("Updated test_email with leadEmail", leadEmail),
-            (err) => console.error("Failed to update test_email", err)
+            (err) => {
+              console.error("Failed to update test_email", err);
+              toast.error("Failed to save email address");
+            }
           );
       }
     }

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { PixelButton } from "./PixelButton";
 import { toast } from "sonner";
 
@@ -109,81 +109,49 @@ function escapeRegExp(string: string) {
 }
 function SpamTerminal() {
   const [values, setValues] = useState({
-    from: "",
     subject: "",
-    preview: "",
     copy: ""
   });
-  const [scanned, setScanned] = useState(false);
-  const [score, setScore] = useState(100);
-  const [foundWords, setFoundWords] = useState<string[]>([]);
-  const [saResult, setSaResult] = useState<{ score: string; rules: { score: string; description: string }[] } | null>(null);
-  const [isScanningContent, setIsScanningContent] = useState(false);
 
-  const handleScan = async () => {
-    if (!values.copy.trim() && !values.subject.trim()) {
-      toast.error("Please enter some email copy or subject line to scan.");
-      return;
+  const copyRef = useRef<HTMLTextAreaElement>(null);
+  const copyBackdropRef = useRef<HTMLDivElement>(null);
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const subjectBackdropRef = useRef<HTMLDivElement>(null);
+
+  const handleCopyScroll = () => {
+    if (copyRef.current && copyBackdropRef.current) {
+      copyBackdropRef.current.scrollTop = copyRef.current.scrollTop;
+      copyBackdropRef.current.scrollLeft = copyRef.current.scrollLeft;
     }
-
-    const textToScan = (values.subject + " " + values.copy).toLowerCase();
-    const found: string[] = [];
-    let penalties = 0;
-
-    SPAM_WORDS.forEach(word => {
-      const escaped = escapeRegExp(word);
-      const regex = new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, 'gi');
-      const matches = textToScan.match(regex);
-      if (matches) {
-        if (!found.includes(word)) found.push(word);
-        penalties += matches.length * 5; // -5 points per spam word
-      }
-    });
-
-    if (values.subject.toUpperCase() === values.subject && values.subject.length > 5) {
-      penalties += 10; // ALL CAPS subject
-    }
-
-    const finalScore = Math.max(0, 100 - penalties);
-    setScore(finalScore);
-    setFoundWords(found);
-    
-    setIsScanningContent(true);
-    try {
-      const res = await fetch('/api/spamassassin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject: values.subject, copy: values.copy })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setSaResult({ score: data.score, rules: data.rules });
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    
-    setIsScanningContent(false);
-    setScanned(true);
   };
 
-  const highlightSpam = (text: string) => {
+  const handleSubjectScroll = () => {
+    if (subjectRef.current && subjectBackdropRef.current) {
+      subjectBackdropRef.current.scrollLeft = subjectRef.current.scrollLeft;
+    }
+  };
+
+  const renderHighlighted = (text: string) => {
     if (!text) return null;
-    let parts: any[] = [text];
+    let parts: React.ReactNode[] = [text];
     
-    foundWords.forEach(word => {
-      const newParts: any[] = [];
+    const sortedSpamWords = [...SPAM_WORDS].sort((a, b) => b.length - a.length);
+
+    sortedSpamWords.forEach((word, wordIdx) => {
+      const newParts: React.ReactNode[] = [];
       const escaped = escapeRegExp(word);
-      const regex = new RegExp(`(${escaped})`, 'gi');
+      const regex = new RegExp(`(?<![a-z0-9])(${escaped})(?![a-z0-9])`, 'gi');
       
       parts.forEach(part => {
         if (typeof part === 'string') {
           const split = part.split(regex);
           split.forEach((s, i) => {
             if (s.toLowerCase() === word.toLowerCase()) {
-              newParts.push(<mark key={`${word}-${i}`} className="bg-hazard text-paper px-1 rounded">{s}</mark>);
+              newParts.push(
+                <span key={`${wordIdx}-${i}`} className="bg-hazard/30 border-b-2 border-hazard rounded-sm">
+                  {s}
+                </span>
+              );
             } else if (s) {
               newParts.push(s);
             }
@@ -194,107 +162,105 @@ function SpamTerminal() {
       });
       parts = newParts;
     });
+    
+    if (text.endsWith('\n')) {
+      parts.push(" ");
+    }
+    
     return parts;
   };
 
+  const textToScan = (values.subject + " " + values.copy).toLowerCase();
+  const found: string[] = [];
+  let penalties = 0;
+
+  SPAM_WORDS.forEach(word => {
+    const escaped = escapeRegExp(word);
+    const regex = new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, 'gi');
+    const matches = textToScan.match(regex);
+    if (matches) {
+      if (!found.includes(word)) found.push(word);
+      penalties += matches.length * 5;
+    }
+  });
+
+  if (values.subject.toUpperCase() === values.subject && values.subject.trim().length > 5) {
+    penalties += 10;
+  }
+
+  const score = Math.max(0, 100 - penalties);
+
   return (
     <div className="pixel-border-lg bg-card p-6 md:p-8 max-w-2xl mx-auto text-left">
-      <div className="font-pixel text-[10px] text-hazard mb-4 text-center">★ SPAM WORD CHECKER ★</div>
+      <div className="font-pixel text-[10px] text-hazard mb-4 text-center">★ LIVE SPAM CHECKER ★</div>
       
-      {!scanned ? (
-        <div className="space-y-4">
-          <div>
-            <label className="font-pixel text-[10px] text-muted-foreground block mb-2">SUBJECT LINE</label>
+      <div className="space-y-6">
+        <div>
+          <label className="font-pixel text-[10px] text-muted-foreground block mb-2">SUBJECT LINE</label>
+          <div className="relative bg-paper pixel-border-sm transition-transform focus-within:translate-x-[-2px] focus-within:translate-y-[-2px]">
+            <div 
+              ref={subjectBackdropRef}
+              className="absolute inset-0 p-3 font-mono-pixel text-xl pointer-events-none whitespace-pre overflow-hidden text-ink"
+              aria-hidden="true"
+            >
+              {values.subject ? renderHighlighted(values.subject) : <span className="text-muted-foreground/50">🚀 Big news inside!!!</span>}
+            </div>
             <input
+              ref={subjectRef}
               type="text"
               value={values.subject}
               onChange={e => setValues(v => ({ ...v, subject: e.target.value }))}
-              placeholder="🚀 Big news inside!!!"
-              className="w-full bg-paper pixel-border-sm p-3 font-mono-pixel text-xl focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform"
+              onScroll={handleSubjectScroll}
+              className="relative w-full bg-transparent p-3 font-mono-pixel text-xl text-transparent focus:outline-none"
+              style={{ caretColor: 'var(--ink)' }}
             />
           </div>
-          <div>
-            <label className="font-pixel text-[10px] text-muted-foreground block mb-2">EMAIL COPY</label>
+        </div>
+
+        <div>
+          <label className="font-pixel text-[10px] text-muted-foreground block mb-2">EMAIL COPY</label>
+          <div className="relative bg-paper pixel-border-sm transition-transform focus-within:translate-x-[-2px] focus-within:translate-y-[-2px] h-48">
+            <div 
+              ref={copyBackdropRef}
+              className="absolute inset-0 p-3 font-mono-pixel text-xl pointer-events-none whitespace-pre-wrap break-words overflow-hidden text-ink"
+              aria-hidden="true"
+            >
+              {values.copy ? renderHighlighted(values.copy) : <span className="text-muted-foreground/50">Hi {"{{first_name}}"}, we have a special promotion...</span>}
+            </div>
             <textarea
-              rows={6}
+              ref={copyRef}
               value={values.copy}
               onChange={e => setValues(v => ({ ...v, copy: e.target.value }))}
-              placeholder="Hi {{first_name}}, we have a special promotion..."
-              className="w-full bg-paper pixel-border-sm p-3 font-mono-pixel text-xl focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform"
+              onScroll={handleCopyScroll}
+              className="relative w-full h-full bg-transparent p-3 font-mono-pixel text-xl text-transparent focus:outline-none resize-none"
+              style={{ caretColor: 'var(--ink)' }}
             />
           </div>
-          <div className="text-center pt-4">
-            <PixelButton variant="accent" size="lg" onClick={handleScan} disabled={isScanningContent}>
-              {isScanningContent ? "SCANNING VIA SPAMASSASSIN..." : "► SCAN CONTENT"}
-            </PixelButton>
+        </div>
+
+        <div className="flex flex-col items-center justify-center p-6 bg-ink pixel-border-sm text-center mt-6">
+          <div className="font-pixel text-xs text-gold mb-2">DELIVERABILITY SCORE</div>
+          <div className={`font-pixel text-4xl ${score >= 80 ? 'text-crt-green' : score >= 60 ? 'text-gold' : 'text-hazard'}`}>
+            {score}/100
+          </div>
+          <div className="font-mono-pixel text-lg text-paper mt-2">
+            {score >= 80 ? "Looks clean! Minor risk." : score >= 60 ? "Warning: Some spam triggers found." : "High risk of hitting the spam folder!"}
           </div>
         </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="flex flex-col items-center justify-center p-6 bg-ink pixel-border-sm text-center">
-            <div className="font-pixel text-xs text-gold mb-2">SPAMASSASSIN SCORE</div>
-            <div className={`font-pixel text-4xl ${saResult ? (parseFloat(saResult.score) < 5 ? 'text-crt-green' : 'text-hazard') : (score >= 80 ? 'text-crt-green' : 'text-hazard')}`}>
-              {saResult ? `${saResult.score} / 5.0` : `${score}/100`}
-            </div>
-            <div className="font-mono-pixel text-lg text-paper mt-2">
-              {saResult ? (
-                parseFloat(saResult.score) < 5 ? "Looks clean! Minor risk." : "Warning: High risk of hitting the spam folder! Keep score < 5.0."
-              ) : (
-                score >= 80 ? "Looks clean! Minor risk." : score >= 60 ? "Warning: Some spam triggers found." : "High risk of hitting the spam folder!"
-              )}
-            </div>
-          </div>
 
-          {saResult && saResult.rules.length > 0 && (
-            <div>
-              <h3 className="font-pixel text-[10px] text-hazard mb-2">SPAMASSASSIN RULES MATCHED</h3>
-              <div className="bg-ink pixel-border-sm p-4 font-mono-pixel text-sm text-paper flex flex-col gap-2">
-                {saResult.rules.map((r, i) => (
-                  <div key={i} className="flex justify-between items-center border-b border-paper/10 pb-1">
-                    <span className="text-muted-foreground">{r.description}</span>
-                    <span className={`text-xs px-2 py-1 bg-paper/10 rounded ${parseFloat(r.score) > 0 ? 'text-hazard' : 'text-crt-green'}`}>
-                      {parseFloat(r.score) > 0 ? '+' : ''}{r.score}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
+        {found.length > 0 && (
           <div>
-            <h3 className="font-pixel text-[10px] text-muted-foreground mb-2">SUBJECT ANALYSIS</h3>
-            <div className="bg-paper pixel-border-sm p-4 font-mono-pixel text-xl whitespace-pre-wrap">
-              {highlightSpam(values.subject) || <span className="text-muted-foreground italic">No subject provided.</span>}
+            <h3 className="font-pixel text-[10px] text-hazard mb-2">SPAM WORDS DETECTED</h3>
+            <div className="flex flex-wrap gap-2">
+              {found.map((w: string) => (
+                <span key={w} className="bg-hazard text-paper font-mono-pixel px-2 py-1 text-lg">
+                  {w}
+                </span>
+              ))}
             </div>
           </div>
-
-          <div>
-            <h3 className="font-pixel text-[10px] text-muted-foreground mb-2">COPY ANALYSIS</h3>
-            <div className="bg-paper pixel-border-sm p-4 font-mono-pixel text-xl whitespace-pre-wrap">
-              {highlightSpam(values.copy) || <span className="text-muted-foreground italic">No copy provided.</span>}
-            </div>
-          </div>
-
-          {foundWords.length > 0 && (
-            <div>
-              <h3 className="font-pixel text-[10px] text-hazard mb-2">SPAM WORDS DETECTED</h3>
-              <div className="flex flex-wrap gap-2">
-                {foundWords.map(w => (
-                  <span key={w} className="bg-hazard text-paper font-mono-pixel px-2 py-1 text-lg">
-                    {w}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="text-center pt-4">
-            <PixelButton variant="ghost" onClick={() => setScanned(false)}>
-              ← EDIT COPY
-            </PixelButton>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
