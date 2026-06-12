@@ -260,8 +260,7 @@ export default function Home() {
               <span className="animate-blink"> _</span>
             </h1>
             <p className="font-mono-pixel text-xl md:text-2xl max-w-2xl mx-auto mb-10 text-muted-foreground">
-              From unexplained spam complaints to high bounces, emails can be tricky. The good news is you'll NEVER have to guess again, just put in your problems and 
-              get the solution. Let's save your email, without the complexity of emails!
+              Stop playing Emails in HARD MODE! Drop your issues, get your perfect solution. It's that simple!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
               <PixelButton
@@ -399,7 +398,7 @@ export default function Home() {
             <PixelCard tone="gold" className="!p-10">
               <PixelBadge tone="hazard" className="mb-4">★ FREE FOREVER ★</PixelBadge>
               <h2 className="font-pixel text-2xl md:text-3xl mb-4">LIFETIME FREE</h2>
-              <p className="font-mono-pixel text-xl mb-8">No credit card. No trial. No "starting at". Just free, because spam shouldn't win.</p>
+              <p className="font-mono-pixel text-xl mb-8">No credit card. No trial. No "starting at". Just free, because spam shouldn't win. If you want to contribute to the cause, I won't stop you, but I don't have anything set up for that yet.</p>
               <Link href="/pricing"><PixelButton variant="primary" size="lg">See Pricing</PixelButton></Link>
             </PixelCard>
           </section>
@@ -410,11 +409,11 @@ export default function Home() {
             <div className="pixel-border bg-card p-6">
               <Accordion type="single" collapsible>
                 {[
-                  { q: "Is it really free forever?", a: "Yes. No tiers. No upsells. The founder pays for the servers because deliverability tooling shouldn't cost $300/mo." },
-                  { q: "Do I need to install anything?", a: "Nope. We work with DNS records and your domain. No code, no JavaScript snippet." },
-                  { q: "Will you send emails for me?", a: "No. We make sure your emails — sent through your existing ESP — actually arrive." },
-                  { q: "How fast is the audit?", a: "About 90 seconds. We run 40+ checks in parallel." },
-                  { q: "Do you support all ESPs?", a: "Yes. Mailchimp, Resend, Postmark, Sendgrid, AWS SES, custom SMTP — anything." },
+                  { q: "Is it really free forever?", a: "Yes. No tiers. The founder pays for the servers because deliverability tooling shouldn't cost a fortune. We have a daily limit for fair usage because if you are using this for yourself, it should not take a 100 attempts." },
+                  { q: "Do I need to install anything?", a: "Nope. We work with DNS records and your domain. Just drop in your questions, answer the follow-up questions, and get your DIY solution. Note if the problem/solution is complicated, consider consulting an expert. You can book a free audit." },
+                  { q: "Will you send emails for me?", a: "No. We make sure your email infrastructure is set up properly, and investigate your sending habits to conclude." },
+                  { q: "How fast is the audit?", a: "About 90 seconds. We ask you some questions to understand the situation and provide some of the easiest DIY fixes." },
+                  { q: "Do you support all ESPs?", a: "Yes. Mailchimp, Resend, Postmark, Sendgrid, AWS SES, custom SMTP — anything. But I created this tool keeping GoHighLevel in mind. As the community grows, I will start expanding the horizon. Feel free to contribute." },
                 ].map((f, i) => (
                   <AccordionItem key={f.q} value={`item-${i}`} className="border-ink border-b-2 last:border-0">
                     <AccordionTrigger className="font-pixel text-xs uppercase hover:no-underline py-4">{f.q}</AccordionTrigger>
@@ -429,7 +428,7 @@ export default function Home() {
           <section className="px-4 py-20 max-w-4xl mx-auto text-center">
             <h2 className="font-pixel text-2xl md:text-3xl mb-6">READY PLAYER ONE?</h2>
             <p className="font-mono-pixel text-xl mb-8 text-muted-foreground">Book an expert audit. Get your fixes. Land in the inbox.</p>
-            <Link href="https://calendly.com/psycicx1ve/30min" target="_blank"><PixelButton variant="accent" size="lg">★ BOOK A CALL ★</PixelButton></Link>
+            <Link href="https://calendly.com/psycicx1ve/30min" target="_blank"><PixelButton variant="accent" size="lg">★ BOOK A CALL (FREE FOR NOW) ★</PixelButton></Link>
           </section>
         </>
       )}
