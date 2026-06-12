@@ -11,7 +11,7 @@ const links = [
   { to: "/best-practices", label: "Best Practices" },
   { to: "/pricing", label: "Pricing" },
   { to: "/mission", label: "Mission" },
-  { to: "https://calendly.com/hi-hisubhadeep/30min", label: "Book Audit", external: true },
+  { to: "https://calendly.com/psycicx1ve/30min", label: "Book Audit", external: true },
 ] as const;
 
 export function PixelHeader() {
