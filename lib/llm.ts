@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { TRIAGE_SYSTEM_PROMPT, DIAGNOSIS_SYSTEM_PROMPT, SPAM_REWRITE_SYSTEM_PROMPT } from "./prompt";
+import { TRIAGE_SYSTEM_PROMPT, DIAGNOSIS_SYSTEM_PROMPT, SPAM_REWRITE_SYSTEM_PROMPT, FULL_SPAM_SCAN_PROMPT } from "./prompt";
 
 // Both OpenAI and Groq speak the same chat-completions API, so a single client
 // with a swappable baseURL/model covers both. Provider is chosen by env:
@@ -192,5 +192,54 @@ export async function callSpamRewrite(
       : [];
   } catch {
     return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALL 4 — FULL SPAM SCAN
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FullSpamScanHit {
+  phrase: string;
+  score: number;
+  rule: string;
+  detail: string;
+  advice: string;
+}
+
+export interface FullSpamScanResult {
+  score: number;
+  verdict: "good" | "borderline" | "spam";
+  hits: FullSpamScanHit[];
+  rewrittenSubject: string;
+  rewrittenCopy: string;
+}
+
+export async function callFullSpamScan(
+  config: LlmConfig,
+  subject: string,
+  copy: string
+): Promise<FullSpamScanResult | null> {
+  const response = await config.client.chat.completions.create({
+    model: config.model,
+    temperature: 0.2, // Keep it deterministic for scoring
+    max_tokens: 1500,
+    messages: [
+      { role: "system", content: FULL_SPAM_SCAN_PROMPT },
+      {
+        role: "user",
+        content: JSON.stringify({ subject, copy }),
+      },
+    ],
+  });
+
+  const raw = response.choices[0]?.message?.content ?? "";
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    const obj = JSON.parse(match ? match[0] : raw);
+    return obj as FullSpamScanResult;
+  } catch (e) {
+    console.error("Failed to parse FULL_SPAM_SCAN response:", e);
+    return null;
   }
 }

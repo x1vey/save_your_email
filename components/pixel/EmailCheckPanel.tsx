@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PixelButton } from "./PixelButton";
 import { toast } from "sonner";
-import { lintEmail, type LintHit } from "@/lib/spam-lint";
+import type { FullSpamScanResult, FullSpamScanHit } from "@/lib/llm";
 
 type Mode = "dmarc" | "spam";
 
@@ -57,89 +57,13 @@ function DmarcBox({ onScan, isScanning }: { onScan?: (domain: string) => void; i
   );
 }
 
-function RewriteSection({
-  hit,
-  haystack,
-  onReplace,
-}: {
-  hit: LintHit;
-  haystack: string;
-  onReplace: (start: number, end: number, suggestion: string) => void;
-}) {
-  const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[] | null>(null);
-
-  if (hit.startIndex === undefined || hit.endIndex === undefined || !hit.phrase) return null;
-
-  async function fetchRewrite() {
-    setLoading(true);
-    try {
-      // Find sentence context by expanding to nearest periods
-      let ctxStart = hit.startIndex || 0;
-      while (ctxStart > 0 && !/[.!?\n]/.test(haystack[ctxStart - 1])) ctxStart--;
-      let ctxEnd = hit.endIndex || 0;
-      while (ctxEnd < haystack.length && !/[.!?\n]/.test(haystack[ctxEnd])) ctxEnd++;
-      
-      const surroundingContext = haystack.substring(ctxStart, ctxEnd).trim();
-
-      const res = await fetch("/api/spamcheck/rewrite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          flaggedPhrase: hit.phrase,
-          rule: hit.rule,
-          surroundingContext,
-        }),
-      });
-      const data = await res.json();
-      setSuggestions(data.suggestions || []);
-    } catch (e) {
-      console.error(e);
-      setSuggestions([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (!suggestions && !loading) {
-    return (
-      <button className="text-gold font-pixel text-[10px] hover:underline uppercase" onClick={fetchRewrite}>
-        ✨ Suggest AI fixes
-      </button>
-    );
-  }
-
-  if (loading) {
-    return <div className="text-muted-foreground font-pixel text-[10px] uppercase animate-pulse">✨ Generating...</div>;
-  }
-
-  if (suggestions && suggestions.length > 0) {
-    return (
-      <div className="mt-2">
-        <div className="font-pixel text-[8px] text-muted-foreground mb-2 uppercase">AI Suggestions (Click to apply):</div>
-        <div className="flex flex-wrap gap-2">
-          {suggestions.map((s, i) => (
-            <button
-              key={i}
-              className="px-2 py-1 bg-ink text-paper font-mono-pixel text-sm hover:bg-gold hover:text-ink transition-colors pixel-border-sm"
-              onClick={() => onReplace(hit.startIndex!, hit.endIndex!, s)}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return <div className="text-hazard font-pixel text-[8px] uppercase">No good alternatives found.</div>;
-}
-
 function SpamTerminal() {
   const [values, setValues] = useState({
     subject: "",
     copy: ""
   });
+  const [scanResult, setScanResult] = useState<FullSpamScanResult | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   const copyRef = useRef<HTMLTextAreaElement>(null);
   const copyBackdropRef = useRef<HTMLDivElement>(null);
@@ -159,49 +83,74 @@ function SpamTerminal() {
     }
   };
 
-  const lintResult = lintEmail(values.subject, values.copy);
-  const haystack = `${values.subject.trim()}\n${values.copy}`;
+  useEffect(() => {
+    const { subject, copy } = values;
+    if (!subject.trim() && !copy.trim()) {
+      setScanResult(null);
+      return;
+    }
 
-  const renderHighlighted = (text: string, globalOffset: number, hits: LintHit[]) => {
-    if (!text) return null;
-    
-    const localHits = hits.filter(h => 
-      h.startIndex !== undefined && h.endIndex !== undefined &&
-      h.startIndex >= globalOffset && h.startIndex < globalOffset + text.length
-    ).sort((a, b) => a.startIndex! - b.startIndex!);
-  
-    const mergedHits: { start: number, end: number, phrase: string }[] = [];
-    for (const h of localHits) {
-      const localStart = h.startIndex! - globalOffset;
-      const localEnd = Math.min(h.endIndex! - globalOffset, text.length);
-      if (mergedHits.length > 0) {
-        const last = mergedHits[mergedHits.length - 1];
-        if (localStart < last.end) {
-          last.end = Math.max(last.end, localEnd);
-          last.phrase = text.substring(last.start, last.end);
-          continue;
+    const timer = setTimeout(async () => {
+      setIsScanning(true);
+      try {
+        const res = await fetch("/api/spamcheck", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subject, copy }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setScanResult(data);
         }
+      } catch (err) {
+        console.error("Scan failed", err);
+      } finally {
+        setIsScanning(false);
       }
-      mergedHits.push({ start: localStart, end: localEnd, phrase: text.substring(localStart, localEnd) });
-    }
-  
-    const parts: React.ReactNode[] = [];
-    let lastIndex = 0;
-  
-    for (const hit of mergedHits) {
-      if (hit.start > lastIndex) {
-        parts.push(text.substring(lastIndex, hit.start));
-      }
-      parts.push(
-        <span key={hit.start} className="bg-hazard/30 border-b-2 border-hazard rounded-sm">
-          {hit.phrase}
-        </span>
-      );
-      lastIndex = hit.end;
-    }
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
-    }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [values.subject, values.copy]);
+
+  const escapeRegExp = (string: string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
+  const renderHighlighted = (text: string, hits: FullSpamScanHit[] | undefined) => {
+    if (!text) return null;
+    if (!hits || hits.length === 0) return text;
+    
+    let parts: React.ReactNode[] = [text];
+    
+    // Sort hits by length descending to match longer phrases first
+    const sortedHits = [...hits].sort((a, b) => b.phrase.length - a.phrase.length);
+
+    sortedHits.forEach((hit, hitIdx) => {
+      const newParts: React.ReactNode[] = [];
+      const escaped = escapeRegExp(hit.phrase);
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      
+      parts.forEach(part => {
+        if (typeof part === 'string') {
+          const split = part.split(regex);
+          split.forEach((s, i) => {
+            if (s.toLowerCase() === hit.phrase.toLowerCase()) {
+              newParts.push(
+                <span key={`${hitIdx}-${i}`} className="bg-hazard/30 border-b-2 border-hazard rounded-sm" title={hit.rule}>
+                  {s}
+                </span>
+              );
+            } else if (s) {
+              newParts.push(s);
+            }
+          });
+        } else {
+          newParts.push(part);
+        }
+      });
+      parts = newParts;
+    });
+
     if (text.endsWith('\n')) {
       parts.push(" ");
     }
@@ -209,25 +158,21 @@ function SpamTerminal() {
     return parts;
   };
 
-  const handleReplace = (start: number, end: number, suggestion: string) => {
-    const subjLen = values.subject.trim().length;
-    let newSubject = values.subject;
-    let newCopy = values.copy;
-
-    if (start <= subjLen) {
-      newSubject = newSubject.substring(0, start) + suggestion + newSubject.substring(end);
-    } else {
-      const copyStart = start - subjLen - 1; // -1 for \n
-      const copyEnd = end - subjLen - 1;
-      newCopy = newCopy.substring(0, copyStart) + suggestion + newCopy.substring(copyEnd);
-    }
-
-    setValues({ subject: newSubject, copy: newCopy });
+  const applyAiFixes = () => {
+    if (!scanResult) return;
+    setValues({
+      subject: scanResult.rewrittenSubject || values.subject,
+      copy: scanResult.rewrittenCopy || values.copy,
+    });
+    setScanResult(null);
+    toast.success("AI Fixes Applied!");
   };
 
   return (
     <div className="pixel-border-lg bg-card p-6 md:p-8 max-w-2xl mx-auto text-left">
-      <div className="font-pixel text-[10px] text-hazard mb-4 text-center">★ LIVE SPAM CHECKER ★</div>
+      <div className="font-pixel text-[10px] text-hazard mb-4 text-center flex items-center justify-center gap-2">
+        ★ LIVE SPAM CHECKER ★ {isScanning && <span className="animate-pulse text-gold">SCANNING...</span>}
+      </div>
       
       <div className="space-y-6">
         <div>
@@ -238,7 +183,7 @@ function SpamTerminal() {
               className="absolute inset-0 p-3 font-mono-pixel text-xl pointer-events-none whitespace-pre overflow-hidden text-ink"
               aria-hidden="true"
             >
-              {values.subject ? renderHighlighted(values.subject, 0, lintResult.hits) : <span className="text-muted-foreground/50">🚀 Big news inside!!!</span>}
+              {values.subject ? renderHighlighted(values.subject, scanResult?.hits) : <span className="text-muted-foreground/50">🚀 Big news inside!!!</span>}
             </div>
             <input
               ref={subjectRef}
@@ -260,7 +205,7 @@ function SpamTerminal() {
               className="absolute inset-0 p-3 font-mono-pixel text-xl pointer-events-none whitespace-pre-wrap break-words overflow-hidden text-ink"
               aria-hidden="true"
             >
-              {values.copy ? renderHighlighted(values.copy, values.subject.trim().length + 1, lintResult.hits) : <span className="text-muted-foreground/50">Hi {"{{first_name}}"}, we have a special promotion...</span>}
+              {values.copy ? renderHighlighted(values.copy, scanResult?.hits) : <span className="text-muted-foreground/50">Hi {"{{first_name}}"}, we have a special promotion...</span>}
             </div>
             <textarea
               ref={copyRef}
@@ -275,27 +220,31 @@ function SpamTerminal() {
 
         <div className="flex flex-col items-center justify-center p-6 bg-ink pixel-border-sm text-center mt-6">
           <div className="font-pixel text-xs text-gold mb-2">SPAMASSASSIN SCORE</div>
-          <div className={`font-pixel text-4xl ${lintResult.verdict === 'good' ? 'text-crt-green' : lintResult.verdict === 'borderline' ? 'text-gold' : 'text-hazard'}`}>
-            {lintResult.score.toFixed(1)} / {lintResult.threshold.toFixed(1)}
+          <div className={`font-pixel text-4xl ${!scanResult ? 'text-muted-foreground' : scanResult.verdict === 'good' ? 'text-crt-green' : scanResult.verdict === 'borderline' ? 'text-gold' : 'text-hazard'}`}>
+            {scanResult ? scanResult.score.toFixed(1) : "0.0"} / 5.0
           </div>
           <div className="font-mono-pixel text-lg text-paper mt-2 uppercase">
-            {lintResult.verdict === 'good' ? "Looks clean! Minor risk." : lintResult.verdict === 'borderline' ? "Warning: Approaching spam threshold." : "High risk! Inbox placement unlikely."}
+            {!scanResult ? "Ready to scan" : scanResult.verdict === 'good' ? "Looks clean! Minor risk." : scanResult.verdict === 'borderline' ? "Warning: Approaching spam threshold." : "High risk! Inbox placement unlikely."}
           </div>
         </div>
 
-        {lintResult.hits.length > 0 && (
+        {scanResult && scanResult.hits.length > 0 && (
           <div>
-            <h3 className="font-pixel text-[10px] text-hazard mb-4">SPAM RULES TRIGGERED</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-pixel text-[10px] text-hazard">SPAM RULES TRIGGERED</h3>
+              <PixelButton variant="primary" size="sm" onClick={applyAiFixes}>
+                ✨ APPLY AI FIXES
+              </PixelButton>
+            </div>
             <div className="space-y-4">
-              {lintResult.hits.map((h, idx) => (
+              {scanResult.hits.map((h, idx) => (
                 <div key={`${h.rule}-${idx}`} className="bg-paper p-4 pixel-border-sm border-l-4 border-l-hazard">
                   <div className="flex justify-between items-start mb-2">
                     <div className="font-pixel text-[10px] uppercase text-ink">{h.rule}</div>
                     <div className="font-pixel text-[10px] text-hazard bg-hazard/10 px-2 py-1">+{h.score.toFixed(1)}</div>
                   </div>
-                  <p className="font-mono-pixel text-lg text-ink mb-1">{h.detail}</p>
-                  <p className="font-mono-pixel text-lg text-muted-foreground mb-3">Fix: {h.advice}</p>
-                  <RewriteSection hit={h} haystack={haystack} onReplace={handleReplace} />
+                  <p className="font-mono-pixel text-lg text-ink mb-1">"{h.phrase}"</p>
+                  <p className="font-mono-pixel text-lg text-muted-foreground">Detail: {h.detail}</p>
                 </div>
               ))}
             </div>
@@ -305,4 +254,3 @@ function SpamTerminal() {
     </div>
   );
 }
-
