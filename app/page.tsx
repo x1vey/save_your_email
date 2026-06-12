@@ -374,7 +374,7 @@ export default function Home() {
           <section className="px-4 py-20 max-w-4xl mx-auto text-center">
             <h2 className="font-pixel text-2xl md:text-3xl mb-6">READY PLAYER ONE?</h2>
             <p className="font-mono-pixel text-xl mb-8 text-muted-foreground">Book an expert audit. Get your fixes. Land in the inbox.</p>
-            <Link href="/audit"><PixelButton variant="accent" size="lg">★ START GAME ★</PixelButton></Link>
+            <Link href="https://calendly.com/hi-hisubhadeep/30min" target="_blank"><PixelButton variant="accent" size="lg">★ BOOK A CALL ★</PixelButton></Link>
           </section>
         </>
       )}

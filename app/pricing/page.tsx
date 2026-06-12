@@ -41,7 +41,7 @@ export default function Page() {
                 </li>
               ))}
             </ul>
-            <Link href="/audit"><PixelButton variant="primary" size="lg" className="w-full">★ Claim Free Forever ★</PixelButton></Link>
+            <Link href="/"><PixelButton variant="primary" size="lg" className="w-full">★ Claim Free Forever ★</PixelButton></Link>
           </PixelCard>
 
           {/* Comparison */}

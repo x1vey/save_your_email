@@ -10,7 +10,7 @@ const links = [
   { to: "/best-practices", label: "Best Practices" },
   { to: "/pricing", label: "Pricing" },
   { to: "/mission", label: "Mission" },
-  { to: "/audit", label: "Book Audit" },
+  { to: "https://calendly.com/hi-hisubhadeep/30min", label: "Book Audit", external: true },
 ] as const;
 
 export function PixelHeader() {
@@ -35,6 +35,7 @@ export function PixelHeader() {
               <Link
                 key={l.to}
                 href={l.to}
+                target={(l as any).external ? "_blank" : undefined}
                 className={`transition-colors ${isActive ? "text-hazard underline decoration-4 underline-offset-4" : "hover:text-hazard"}`}
               >
                 {l.label}
@@ -62,7 +63,7 @@ export function PixelHeader() {
         <div className="md:hidden border-t-4 border-ink bg-paper">
           <div className="px-4 py-4 flex flex-col gap-3 font-pixel text-xs uppercase">
             {links.map((l) => (
-              <Link key={l.to} href={l.to} onClick={() => setOpen(false)} className="py-1">
+              <Link key={l.to} href={l.to} target={(l as any).external ? "_blank" : undefined} onClick={() => setOpen(false)} className="py-1">
                 {l.label}
               </Link>
             ))}
