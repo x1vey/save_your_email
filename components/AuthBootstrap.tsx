@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { PixelCard, PixelBadge } from "@/components/pixel/PixelCard";
+import { PixelButton } from "@/components/pixel/PixelButton";
+import { toast } from "sonner";
 
 export default function AuthBootstrap() {
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
   const [configured, setConfigured] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [tab, setTab] = useState<"signup" | "login">("signup");
+  const [tab, setTab] = useState<"signup" | "login">("login");
   const [allowGuest, setAllowGuest] = useState(true);
 
   // Form states
@@ -18,7 +21,6 @@ export default function AuthBootstrap() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -47,7 +49,7 @@ export default function AuthBootstrap() {
       const customEvent = e as CustomEvent;
       const allowGuestVal = customEvent.detail?.allowGuest !== false;
       setAllowGuest(allowGuestVal);
-      setTab("signup");
+      setTab("login");
       setIsOpen(true);
     };
     window.addEventListener("open-auth-modal", handleOpen);
@@ -63,7 +65,6 @@ export default function AuthBootstrap() {
     e.preventDefault();
     if (!supabase) return;
     setError(null);
-    setSuccess(null);
 
     if (!fullName.trim() || !email.trim() || !password.trim()) {
       setError("Please fill out all fields.");
@@ -88,17 +89,13 @@ export default function AuthBootstrap() {
 
       if (signUpError) throw signUpError;
 
-      // Check if session was created (implies auto-confirm is enabled)
       if (data.session) {
         setSession(data.session);
-        sessionStorage.setItem("mailcheck:dismissed-auth", "true");
         setIsOpen(false);
+        toast.success("Account created successfully!");
       } else {
-        setSuccess("Account created! Please check your email to verify your address.");
-        // Clear fields
-        setFullName("");
-        setEmail("");
-        setPassword("");
+        toast.success("Account created! Please check your email to verify.");
+        setTab("login");
       }
     } catch (err) {
       setError((err as Error).message);
@@ -112,7 +109,6 @@ export default function AuthBootstrap() {
     e.preventDefault();
     if (!supabase) return;
     setError(null);
-    setSuccess(null);
 
     if (!email.trim() || !password.trim()) {
       setError("Please enter your email and password.");
@@ -129,8 +125,8 @@ export default function AuthBootstrap() {
       if (signInError) throw signInError;
 
       setSession(data.session);
-      sessionStorage.setItem("mailcheck:dismissed-auth", "true");
       setIsOpen(false);
+      toast.success("Welcome back!");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -142,15 +138,14 @@ export default function AuthBootstrap() {
   async function handleGuest() {
     if (!supabase) return;
     setError(null);
-    setSuccess(null);
     setLoading(true);
     try {
       const { data, error: guestError } = await supabase.auth.signInAnonymously();
       if (guestError) throw guestError;
 
       setSession(data.session);
-      sessionStorage.setItem("mailcheck:dismissed-auth", "true");
       setIsOpen(false);
+      toast.success("Playing as Guest");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -164,101 +159,106 @@ export default function AuthBootstrap() {
   }
 
   return (
-    <div className="auth-overlay">
-      <div className="auth-card">
-        <h2>{tab === "signup" ? "Create your account" : "Sign in to MailCheck"}</h2>
-        <p className="subtitle">
-          {tab === "signup"
-            ? "Create an account to save your scan history, customize checks, and get tailored AI advice."
-            : "Sign back in to retrieve your audit history and linter drafts."}
-        </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+        <PixelCard tone="sky" className="relative shadow-2xl shadow-ink/50 border-4 border-ink">
+          
+          {/* Close button */}
+          <button 
+            onClick={() => setIsOpen(false)}
+            className="absolute -top-4 -right-4 w-10 h-10 bg-hazard border-4 border-ink font-pixel text-paper hover:scale-110 transition-transform flex items-center justify-center z-10"
+          >
+            X
+          </button>
 
-        {error && <div className="err" style={{ marginBottom: 16, textAlign: "center" }}>{error}</div>}
-        {success && <div className="finding ok" style={{ marginBottom: 16, textAlign: "center" }}>{success}</div>}
+          <div className="text-center mb-6">
+            <PixelBadge tone={tab === "login" ? "gold" : "sky"} className="mb-3">
+              ★ {tab === "login" ? "PLAYER LOGIN" : "NEW PLAYER"} ★
+            </PixelBadge>
+            <h2 className="font-pixel text-lg md:text-xl text-ink uppercase mt-2">
+              {tab === "login" ? "Sign In to Continue" : "Create Account"}
+            </h2>
+            <p className="font-mono-pixel text-base text-muted-foreground mt-2">
+              {tab === "login" 
+                ? "Access your saved scans and drafts." 
+                : "Save your progress and get custom advice."}
+            </p>
+          </div>
 
-        <form onSubmit={tab === "signup" ? handleSignUp : handleLogIn} className="auth-form">
-          {tab === "signup" && (
-            <div className="auth-group">
-              <label htmlFor="fullName">Full Name</label>
-              <input
-                id="fullName"
-                type="text"
-                placeholder="Jane Doe"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
+          {error && (
+            <div className="bg-hazard/20 border-2 border-hazard text-hazard p-3 font-mono-pixel text-sm mb-4 text-center">
+              {error}
             </div>
           )}
 
-          <div className="auth-group">
-            <label htmlFor="email">Email Address</label>
-            <input
-              id="email"
-              type="email"
-              placeholder="jane@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                background: "var(--panel-2)",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-                borderRadius: "8px",
-                padding: "12px 14px",
-                fontSize: "15px",
-                outline: "none"
-              }}
-            />
-          </div>
+          <form onSubmit={tab === "signup" ? handleSignUp : handleLogIn} className="space-y-4">
+            {tab === "signup" && (
+              <div>
+                <label className="font-pixel text-[10px] text-muted-foreground block mb-2">FULL NAME</label>
+                <input
+                  type="text"
+                  placeholder="Player One"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="w-full pixel-border-sm bg-paper px-4 py-3 font-mono-pixel text-lg text-ink focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform"
+                />
+              </div>
+            )}
 
-          <div className="auth-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                background: "var(--panel-2)",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-                borderRadius: "8px",
-                padding: "12px 14px",
-                fontSize: "15px",
-                outline: "none"
-              }}
-            />
-          </div>
+            <div>
+              <label className="font-pixel text-[10px] text-muted-foreground block mb-2">EMAIL ADDRESS</label>
+              <input
+                type="email"
+                placeholder="player@domain.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full pixel-border-sm bg-paper px-4 py-3 font-mono-pixel text-lg text-ink focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform"
+              />
+            </div>
 
-          <button type="submit" className="primary" style={{ width: "100%", marginTop: 8 }} disabled={loading}>
-            {loading ? <span className="spinner" /> : tab === "signup" ? "Create Account" : "Sign In"}
-          </button>
-        </form>
+            <div>
+              <label className="font-pixel text-[10px] text-muted-foreground block mb-2">PASSWORD</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full pixel-border-sm bg-paper px-4 py-3 font-mono-pixel text-lg text-ink focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform"
+              />
+            </div>
 
-        <div className="auth-toggle">
-          {tab === "signup" ? (
-            <span>
-              Already have an account?
-              <button onClick={() => { setTab("login"); setError(null); setSuccess(null); }}>Log In</button>
-            </span>
-          ) : (
-            <span>
-              Don't have an account?
-              <button onClick={() => { setTab("signup"); setError(null); setSuccess(null); }}>Create Account</button>
-            </span>
-          )}
-        </div>
+            <div className="pt-2">
+              <PixelButton type="submit" variant="primary" size="lg" className="w-full" disabled={loading}>
+                {loading ? "CONNECTING..." : tab === "login" ? "LOGIN ►" : "JOIN ►"}
+              </PixelButton>
+            </div>
+          </form>
 
-        {allowGuest && (
-          <div className="auth-guest">
-            <button onClick={handleGuest} disabled={loading}>
-              Continue as Guest (Anonymous)
+          <div className="mt-6 space-y-4 text-center">
+            <button 
+              onClick={() => { setTab(tab === "login" ? "signup" : "login"); setError(null); }}
+              className="font-pixel text-[10px] uppercase text-muted-foreground hover:text-ink hover:underline"
+            >
+              {tab === "login" ? "Need an account? Sign Up" : "Already playing? Log In"}
             </button>
+
+            {allowGuest && (
+              <div>
+                <button 
+                  onClick={handleGuest} 
+                  disabled={loading}
+                  className="font-pixel text-[10px] uppercase text-sky hover:underline"
+                >
+                  ► Continue as Guest
+                </button>
+              </div>
+            )}
           </div>
-        )}
+
+        </PixelCard>
       </div>
     </div>
   );
