@@ -260,8 +260,8 @@ export default function Home() {
               <span className="animate-blink"> _</span>
             </h1>
             <p className="font-mono-pixel text-xl md:text-2xl max-w-2xl mx-auto mb-10 text-muted-foreground">
-              Expert email deliverability audits, SPF/DKIM/DMARC fixes, and inbox monitoring.
-              Defeat the spam ogre. Land in the inbox.
+              From unexplained spam complaints to high bounces, emails can be tricky. The good news is you'll NEVER have to guess again, just put in your problems and 
+              get the solution. Let's save your email, without the complexity of emails!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
               <PixelButton
