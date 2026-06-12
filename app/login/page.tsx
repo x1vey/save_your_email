@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 export default function Page() {
   const router = useRouter();
-  const [tab, setTab] = useState<"signup" | "login">("login");
+  const [tab, setTab] = useState<"signup" | "login" | "forgot">("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,7 +52,12 @@ export default function Page() {
         setTab("login");
       }
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists")) {
+        setError("Email already exists. Please log in or click Forgot Password.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -86,17 +91,50 @@ export default function Page() {
     }
   }
 
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    setError(null);
+
+    if (!email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (resetError) throw resetError;
+
+      toast.success("Password reset link sent to your email!");
+      setTab("login");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <PixelLayout>
       <section className="px-4 py-16 max-w-md mx-auto">
         <PixelCard tone="paper" className="scanlines">
           <div className="text-center mb-6">
-            <PixelBadge tone={tab === "login" ? "gold" : "sky"} className="mb-3">
-              ★ {tab === "login" ? "PLAYER LOGIN" : "NEW PLAYER"} ★
+            <PixelBadge tone={tab === "login" ? "gold" : tab === "signup" ? "sky" : "hazard"} className="mb-3">
+              ★ {tab === "login" ? "PLAYER LOGIN" : tab === "signup" ? "NEW PLAYER" : "PASSWORD RECOVERY"} ★
             </PixelBadge>
-            <h1 className="font-pixel text-lg md:text-xl">
-              {tab === "login" ? "ENTER CREDENTIALS" : "CREATE ACCOUNT"}
+            <h1 className="font-pixel text-lg md:text-xl mt-2">
+              {tab === "login" ? "ENTER CREDENTIALS" : tab === "signup" ? "CREATE ACCOUNT" : "FORGOT PASSWORD"}
             </h1>
+            <p className="font-mono-pixel text-base text-muted-foreground mt-2">
+              {tab === "login" 
+                ? "Access your saved scans and drafts." 
+                : tab === "signup" 
+                ? "Save your progress and get custom advice."
+                : "Enter your email to receive a reset link."}
+            </p>
           </div>
 
           {error && (
@@ -105,7 +143,7 @@ export default function Page() {
             </div>
           )}
 
-          <form onSubmit={tab === "signup" ? handleSignUp : handleLogIn} className="space-y-4">
+          <form onSubmit={tab === "signup" ? handleSignUp : tab === "forgot" ? handleForgotPassword : handleLogIn} className="space-y-4">
             {tab === "signup" && (
               <div>
                 <label className="font-pixel text-[10px] text-muted-foreground block mb-2">FULL NAME</label>
@@ -132,31 +170,42 @@ export default function Page() {
               />
             </div>
             
-            <div>
-              <label className="font-pixel text-[10px] text-muted-foreground block mb-2">PASSWORD</label>
-              <input
-                required
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pixel-border-sm bg-card px-4 py-3 font-mono-pixel text-lg text-ink focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform"
-              />
-            </div>
+            {tab !== "forgot" && (
+              <div>
+                <label className="font-pixel text-[10px] text-muted-foreground block mb-2">PASSWORD</label>
+                <input
+                  required
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pixel-border-sm bg-card px-4 py-3 font-mono-pixel text-lg text-ink focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform"
+                />
+              </div>
+            )}
 
             <div className="pt-4">
               <PixelButton type="submit" variant="primary" size="lg" className="w-full" disabled={loading}>
-                {loading ? "CONNECTING..." : tab === "login" ? "LOGIN ►" : "JOIN ►"}
+                {loading ? "CONNECTING..." : tab === "login" ? "LOGIN ►" : tab === "signup" ? "JOIN ►" : "SEND LINK ►"}
               </PixelButton>
             </div>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 space-y-4 text-center">
+            {tab !== "forgot" && (
+              <button 
+                onClick={() => { setTab("forgot"); setError(null); }}
+                className="font-pixel text-[10px] uppercase text-muted-foreground hover:text-ink hover:underline block w-full"
+              >
+                Forgot Password?
+              </button>
+            )}
+
             <button 
               onClick={() => { setTab(tab === "login" ? "signup" : "login"); setError(null); }}
               className="font-pixel text-[10px] uppercase text-muted-foreground hover:text-ink hover:underline"
             >
-              {tab === "login" ? "Need an account? Sign Up" : "Already playing? Log In"}
+              {tab === "login" ? "Need an account? Sign Up" : tab === "signup" ? "Already playing? Log In" : "Back to Login"}
             </button>
           </div>
 
