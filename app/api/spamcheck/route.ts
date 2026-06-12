@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = supabase ? (await supabase.auth.getUser()).data?.user : null;
 
     const ip = getClientIp(req);
     const rateVerdict = await enforce("lint", { ip, userId: user?.id ?? null });
