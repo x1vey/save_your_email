@@ -190,7 +190,7 @@ in order, identify the combination driving the problem.
 
 ⚠️ DO NOT use these numbers in any output. DO NOT conclude that gradual decline
 always means list hygiene. Always reason from the actual user's data.
-\`;
+`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CALL 1 — TRIAGE SYSTEM PROMPT
@@ -199,7 +199,7 @@ always means list hygiene. Always reason from the actual user's data.
 // Returns: { slotIds: string[], rationale: string }
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const TRIAGE_SYSTEM_PROMPT = \`You are the triage brain of an email deliverability diagnostic tool.
+export const TRIAGE_SYSTEM_PROMPT = `You are the triage brain of an email deliverability diagnostic tool.
 
 You are given:
 - SCAN: Live DNS scan results (SPF, DKIM, DMARC, MX, ESP detection, tech score)
@@ -210,7 +210,7 @@ Your job is to decide which question slots are most valuable to ask THIS specifi
 sender, in what order, given what the scan already tells us and what the problem
 statement reveals.
 
-\${REASONING_CONSTITUTION}
+${REASONING_CONSTITUTION}
 
 # YOUR TASK
 1. Read the scan findings. Note what is already known — do not select slots that
@@ -280,7 +280,7 @@ Return ONLY valid JSON. No preamble, no explanation outside the JSON.
 }
 
 # KNOWLEDGE BASE (authoritative numbers — use these, do not invent)
-\${KB_TEXT}\`;
+${KB_TEXT}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CALL 2 — DIAGNOSIS SYSTEM PROMPT
@@ -288,7 +288,7 @@ Return ONLY valid JSON. No preamble, no explanation outside the JSON.
 // action plan that is situationally generated for this specific sender.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const DIAGNOSIS_SYSTEM_PROMPT = \`You are a senior email deliverability consultant producing a personalised
+export const DIAGNOSIS_SYSTEM_PROMPT = `You are a senior email deliverability consultant producing a personalised
 action plan or clarifying questions for a specific sender.
 
 You are given:
@@ -298,7 +298,7 @@ You are given:
 - PROBLEM_STATEMENT: The sender's stated problem (may be empty)
 - FINAL_SCORE: The computed deliverability health score (0–100)
 
-\${REASONING_CONSTITUTION}
+${REASONING_CONSTITUTION}
 
 # YOUR TASK
 Produce a JSON response containing either a prioritised, plain-English action plan for this specific sender OR a list of follow-up questions if details are inconclusive.
@@ -377,7 +377,7 @@ that this tool is designed for consensual senders, and refer to Subhadeep for
 cold email setup. Do not attempt a full cold email diagnosis.
 
 # KNOWLEDGE BASE (authoritative numbers — cite these, do not invent)
-\${KB_TEXT}\`;
+${KB_TEXT}`;
 
 // Legacy alias — kept for any routes that have not yet migrated to the new names.
 // Remove once all API routes use TRIAGE_SYSTEM_PROMPT and DIAGNOSIS_SYSTEM_PROMPT.
@@ -387,7 +387,7 @@ export const SYSTEM_PROMPT = DIAGNOSIS_SYSTEM_PROMPT;
 // CALL 3 — SPAM REWRITE SYSTEM PROMPT
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const SPAM_REWRITE_SYSTEM_PROMPT = \`You suggest natural alternative phrasings for flagged spam-trigger words or phrases in marketing email copy.
+export const SPAM_REWRITE_SYSTEM_PROMPT = `You suggest natural alternative phrasings for flagged spam-trigger words or phrases in marketing email copy.
 
 You are given a flagged phrase, the rule it triggered, and the surrounding sentence for context.
 
@@ -414,13 +414,13 @@ Return ONLY valid JSON, no preamble, no code fences:
 }
 
 # KNOWLEDGE BASE REFERENCE
-\${KB_TEXT}\`;
+${KB_TEXT}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CALL 4 — FULL SPAM SCAN PROMPT
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const FULL_SPAM_SCAN_PROMPT = \`You are an advanced, hyper-aggressive B2B spam filter and copywriter.
+export const FULL_SPAM_SCAN_PROMPT = `You are an advanced, hyper-aggressive B2B spam filter and copywriter.
 You will evaluate an email draft (subject line and body) against modern spam rules.
 
 # YOUR TASK
@@ -453,4 +453,4 @@ You MUST return ONLY valid JSON matching this exact structure (no markdown wrapp
 }
 
 # KNOWLEDGE BASE REFERENCE
-\${KB_TEXT}\`;
+${KB_TEXT}`;

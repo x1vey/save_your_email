@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { getLlm, callFullSpamScan } from "@/lib/llm";
-import { checkRateLimit } from "@/lib/ratelimit";
+import { enforce, getClientIp, rateLimitResponse } from "@/lib/ratelimit";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
   try {
-    // 1. Rate limiting (same as interview/rewrite)
-    const ip = req.headers.get("x-forwarded-for") ?? "127.0.0.1";
-    if (!checkRateLimit(ip)) {
-      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const ip = getClientIp(req);
+    const rateVerdict = await enforce("lint", { ip, userId: user?.id ?? null });
+    
+    if (!rateVerdict.ok) {
+      return rateLimitResponse(rateVerdict);
     }
 
     // 2. Parse request
