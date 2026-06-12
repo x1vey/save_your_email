@@ -11,12 +11,52 @@ import { toast } from "sonner";
 
 export default function Page() {
   const router = useRouter();
+  const [tab, setTab] = useState<"signup" | "login">("login");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
+
+  async function handleSignUp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    setError(null);
+
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setError("Please fill out all fields.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (data.session) {
+        toast.success("Account created successfully!");
+        router.push("/");
+      } else {
+        toast.success("Account created! Please check your email to verify.");
+        setTab("login");
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleLogIn(e: React.FormEvent) {
     e.preventDefault();
@@ -51,8 +91,12 @@ export default function Page() {
       <section className="px-4 py-16 max-w-md mx-auto">
         <PixelCard tone="paper" className="scanlines">
           <div className="text-center mb-6">
-            <PixelBadge tone="gold" className="mb-3">★ PLAYER LOGIN ★</PixelBadge>
-            <h1 className="font-pixel text-lg md:text-xl">ENTER CREDENTIALS</h1>
+            <PixelBadge tone={tab === "login" ? "gold" : "sky"} className="mb-3">
+              ★ {tab === "login" ? "PLAYER LOGIN" : "NEW PLAYER"} ★
+            </PixelBadge>
+            <h1 className="font-pixel text-lg md:text-xl">
+              {tab === "login" ? "ENTER CREDENTIALS" : "CREATE ACCOUNT"}
+            </h1>
           </div>
 
           {error && (
@@ -61,7 +105,21 @@ export default function Page() {
             </div>
           )}
 
-          <form onSubmit={handleLogIn} className="space-y-4">
+          <form onSubmit={tab === "signup" ? handleSignUp : handleLogIn} className="space-y-4">
+            {tab === "signup" && (
+              <div>
+                <label className="font-pixel text-[10px] text-muted-foreground block mb-2">FULL NAME</label>
+                <input
+                  required
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Player One"
+                  className="w-full pixel-border-sm bg-card px-4 py-3 font-mono-pixel text-lg text-ink focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform"
+                />
+              </div>
+            )}
+            
             <div>
               <label className="font-pixel text-[10px] text-muted-foreground block mb-2">EMAIL ADDRESS</label>
               <input
@@ -88,16 +146,21 @@ export default function Page() {
 
             <div className="pt-4">
               <PixelButton type="submit" variant="primary" size="lg" className="w-full" disabled={loading}>
-                {loading ? "CONNECTING..." : "LOGIN ►"}
+                {loading ? "CONNECTING..." : tab === "login" ? "LOGIN ►" : "JOIN ►"}
               </PixelButton>
             </div>
           </form>
 
-        </PixelCard>
+          <div className="mt-6 text-center">
+            <button 
+              onClick={() => { setTab(tab === "login" ? "signup" : "login"); setError(null); }}
+              className="font-pixel text-[10px] uppercase text-muted-foreground hover:text-ink hover:underline"
+            >
+              {tab === "login" ? "Need an account? Sign Up" : "Already playing? Log In"}
+            </button>
+          </div>
 
-        <p className="text-center font-mono-pixel text-base text-muted-foreground mt-6 flex flex-col gap-2">
-          <span>New here? <Link href="/audit" className="underline hover:text-ink">Book a free audit</Link> or sign up when prompted.</span>
-        </p>
+        </PixelCard>
       </section>
     </PixelLayout>
   );
