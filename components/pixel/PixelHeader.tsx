@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { PixelButton } from "./PixelButton";
 import { usePathname } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 const links = [
   { to: "/", label: "Home" },
@@ -16,6 +17,31 @@ const links = [
 export function PixelHeader() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+  }
+
+  const name = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Player";
 
   return (
     <header className="sticky top-0 z-40 bg-paper border-b-4 border-ink">
@@ -44,10 +70,17 @@ export function PixelHeader() {
           })}
         </nav>
 
-        <div className="hidden md:block">
-          <Link href="/login">
-            <PixelButton variant="secondary" size="sm">Log In</PixelButton>
-          </Link>
+        <div className="hidden md:flex items-center gap-4">
+          {user ? (
+            <>
+              <span className="font-pixel text-[11px] text-muted-foreground uppercase">Hey {name}</span>
+              <button onClick={handleLogout} className="font-pixel text-[11px] uppercase hover:text-hazard">Logout</button>
+            </>
+          ) : (
+            <Link href="/login">
+              <PixelButton variant="secondary" size="sm">Log In</PixelButton>
+            </Link>
+          )}
         </div>
 
         <button
@@ -67,9 +100,17 @@ export function PixelHeader() {
                 {l.label}
               </Link>
             ))}
-            <Link href="/login" onClick={() => setOpen(false)}>
-              <PixelButton variant="secondary" size="sm" className="w-full">Log In</PixelButton>
-            </Link>
+            
+            {user ? (
+              <div className="flex justify-between items-center py-2 border-t-2 border-ink border-dashed mt-2 pt-4">
+                <span className="font-pixel text-[11px] text-muted-foreground">HEY {name.toUpperCase()}</span>
+                <button onClick={() => { handleLogout(); setOpen(false); }} className="font-pixel text-[11px] text-hazard hover:underline">LOGOUT</button>
+              </div>
+            ) : (
+              <Link href="/login" onClick={() => setOpen(false)}>
+                <PixelButton variant="secondary" size="sm" className="w-full">Log In</PixelButton>
+              </Link>
+            )}
           </div>
         </div>
       )}

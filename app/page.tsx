@@ -134,8 +134,12 @@ export default function Home() {
   function startProblemStep() {
     const isRealUser = user && !user.is_anonymous;
     if (isRealUser) {
-      setProblemStatement("");
-      setStage("problem");
+      if (problemStatement.trim().length > 0) {
+        runTriage();
+      } else {
+        setProblemStatement("");
+        setStage("problem");
+      }
     } else {
       window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { allowGuest: false } }));
     }
@@ -265,6 +269,18 @@ export default function Home() {
                 ► SPAM CHECK
               </PixelButton>
             </div>
+
+            <div className="max-w-2xl mx-auto mb-8 text-left">
+              <label className="font-pixel text-[10px] text-muted-foreground block mb-2 text-center uppercase">What email problem are you facing?</label>
+              <textarea
+                rows={3}
+                placeholder="E.g. My open rates dropped from 40% to 2%..."
+                value={problemStatement}
+                onChange={(e) => setProblemStatement(e.target.value)}
+                className="w-full bg-paper pixel-border-sm p-4 font-mono-pixel text-xl focus:outline-none focus:translate-x-[-2px] focus:translate-y-[-2px] transition-transform placeholder-ink/50"
+              />
+            </div>
+
             <EmailCheckPanel mode={mode} onScan={runScan} isScanning={false} />
             {error && <div className="text-hazard text-xl mt-4 font-mono-pixel">{error}</div>}
           </section>
